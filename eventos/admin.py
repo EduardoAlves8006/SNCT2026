@@ -5,7 +5,7 @@ from django.contrib.auth.forms import UserChangeForm as UserChangeFormPadrao
 from django.contrib.auth.forms import UserCreationForm as UserCreationFormPadrao
 from django.contrib.auth.models import Group, User
 
-from .models import Area, Evento
+from .models import Area, Cartao, Evento, Submissao
 
 
 @admin.register(Area)
@@ -52,6 +52,55 @@ class AreaAdmin(admin.ModelAdmin):
     def quem_administra(self, area):
         nomes = [u.get_full_name() or u.username for u in area.gestores.all()]
         return ", ".join(nomes) or "—"
+
+
+@admin.register(Submissao)
+class SubmissaoAdmin(admin.ModelAdmin):
+    """A submissão é uma linha só: não se cria nem se apaga, só se edita.
+
+    O caminho normal é o painel (/painel/submissao/). Isto aqui existe para o
+    caso de a organização já estar no /admin/ criando contas.
+    """
+
+    list_display = ["__str__", "aberta", "situacao_no_site", "prazo"]
+    fields = ["aberta", "link", "prazo"]
+
+    @admin.display(description="o que aparece no site")
+    def situacao_no_site(self, submissao):
+        return submissao.situacao
+
+    def has_add_permission(self, request):
+        # A linha já vem criada pela migração; uma segunda não teria efeito.
+        return not Submissao.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Cartao)
+class CartaoAdmin(admin.ModelAdmin):
+    """Os cartões da página inicial.
+
+    O caminho normal é /painel/cartoes/, que é mais simples de usar. Isto
+    existe para quem já está aqui dentro.
+    """
+
+    list_display = ["titulo", "etiqueta_no_site", "area", "ordem", "publicado"]
+    list_editable = ["ordem", "publicado"]
+    list_filter = ["publicado", "area"]
+    search_fields = ["titulo", "descricao", "responsavel"]
+    autocomplete_fields = ["area"]
+
+    fieldsets = (
+        (None, {"fields": ("titulo", "area", "trilha")}),
+        ("Quem responde", {"fields": ("responsavel", "coordenacao")}),
+        ("Conteúdo", {"fields": ("descricao", "programacao_rotulo", "programacao")}),
+        ("Na página", {"fields": ("ordem", "publicado")}),
+    )
+
+    @admin.display(description="etiqueta")
+    def etiqueta_no_site(self, cartao):
+        return cartao.etiqueta
 
 
 @admin.register(Evento)

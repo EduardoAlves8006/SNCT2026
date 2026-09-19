@@ -1,23 +1,31 @@
+from functools import wraps
+
 from django.contrib import messages
 from django.db import connection
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import EventoForm, InscricaoDaAreaForm
-from .models import Area, Evento, areas_do_usuario
+from .forms import CartaoForm, EventoForm, InscricaoDaAreaForm, SubmissaoForm
+from .models import Area, Cartao, Evento, Submissao, areas_do_usuario
 
 # ---------------------------------------------------------------- site público
 
 
 def home(request):
-    # Os cartões são fixos no template, mas o estado da inscrição de cada um
-    # vem do banco, para a organização poder abrir e fechar pelo /admin/ sem
-    # que ninguém precise mexer no HTML nem reimplantar o site.
-    areas = {a.slug: a for a in Area.objects.filter(ativo=True)}
-    return render(request, "index.html", {"areas": areas})
+    # Nada aqui é HTML fixo: os cartões e o estado de cada inscrição vêm do
+    # banco, para a organização mudar o site sem reimplantá-lo.
+    cartoes = (
+        Cartao.objects.filter(publicado=True, area__ativo=True)
+        .select_related("area")
+    )
+    return render(
+        request,
+        "index.html",
+        {"cartoes": cartoes, "submissao": Submissao.atual()},
+    )
 
 
 def saude(request):
@@ -100,6 +108,9 @@ def lista(request):
             "areas": areas,
             "varias_areas": len(areas) > 1,
             "hoje": timezone.localdate(),
+            # Só o superusuário mexe na submissão; para os demais o bloco nem
+            # aparece — e a view de /painel/submissao/ recusa do mesmo jeito.
+            "submissao": Submissao.atual() if request.user.is_superuser else None,
         },
     )
 
@@ -127,6 +138,119 @@ def inscricao(request, slug):
         form = InscricaoDaAreaForm(instance=area)
 
     return render(request, "painel/inscricao.html", {"form": form, "area": area})
+
+
+def so_administrador(view):
+    """Fecha a view para quem não é administrador.
+
+    Devolve 404, e não 403, pela mesma razão do resto do painel: quem não
+    pode mexer não precisa saber que a página existe. Vale no GET e no POST,
+    porque é o decorador que barra — não o template que esconde o botão.
+    """
+
+    @wraps(view)
+    @login_required
+    def porteiro(request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise Http404
+        return view(request, *args, **kwargs)
+
+    return porteiro
+
+
+@so_administrador
+def submissao(request):
+    """Abre, fecha e troca o link da submissão de trabalhos.
+
+    A submissão é uma só para o evento inteiro — não é de uma coordenação, e
+    sim da organização.
+    """
+    submissao = Submissao.atual()
+
+    if request.method == "POST":
+        form = SubmissaoForm(request.POST, instance=submissao)
+        if form.is_valid():
+            submissao = form.save()
+            messages.success(
+                request,
+                f"Submissão de trabalhos: o site passa a mostrar {submissao.situacao}.",
+            )
+            return redirect("painel:lista")
+    else:
+        form = SubmissaoForm(instance=submissao)
+
+    return render(
+        request,
+        "painel/submissao.html",
+        {"form": form, "submissao": submissao},
+    )
+
+
+# ------------------------------------------- cartões da página inicial
+
+
+@so_administrador
+def cartoes(request):
+    return render(
+        request,
+        "painel/cartoes.html",
+        {"cartoes": Cartao.objects.select_related("area")},
+    )
+
+
+@so_administrador
+def cartao_novo(request):
+    if request.method == "POST":
+        form = CartaoForm(request.POST)
+        if form.is_valid():
+            cartao = form.save()
+            messages.success(request, f"Cartão “{cartao.titulo}” criado.")
+            return redirect("painel:cartoes")
+    else:
+        # o novo entra no fim da fila, e não empatado com o primeiro
+        ultimo = Cartao.objects.order_by("-ordem").first()
+        form = CartaoForm(initial={"ordem": (ultimo.ordem + 1) if ultimo else 0})
+
+    return render(
+        request,
+        "painel/cartao_form.html",
+        {"form": form, "titulo_pagina": "Novo cartão"},
+    )
+
+
+@so_administrador
+def cartao_editar(request, pk):
+    cartao = get_object_or_404(Cartao, pk=pk)
+
+    if request.method == "POST":
+        form = CartaoForm(request.POST, instance=cartao)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Cartão “{cartao.titulo}” atualizado.")
+            return redirect("painel:cartoes")
+    else:
+        form = CartaoForm(instance=cartao)
+
+    return render(
+        request,
+        "painel/cartao_form.html",
+        {"form": form, "cartao": cartao, "titulo_pagina": "Editar cartão"},
+    )
+
+
+@so_administrador
+@require_http_methods(["GET", "POST"])
+def cartao_excluir(request, pk):
+    cartao = get_object_or_404(Cartao, pk=pk)
+
+    # GET mostra a confirmação; só o POST apaga de verdade.
+    if request.method == "POST":
+        titulo = cartao.titulo
+        cartao.delete()
+        messages.success(request, f"Cartão “{titulo}” excluído.")
+        return redirect("painel:cartoes")
+
+    return render(request, "painel/cartao_excluir.html", {"cartao": cartao})
 
 
 @login_required

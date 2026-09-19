@@ -45,6 +45,7 @@
     </a>
 
     <nav class="menu" aria-label="Seções da página">
+      <a href="{% url 'home' %}#trabalhos">Trabalhos</a>
       <a href="{% url 'home' %}#programacao">Programação</a>
       <a href="{% url 'cronograma' %}"{% if pagina == 'cronograma' %} aria-current="page"{% endif %}>Cronograma</a>
       <a href="{% url 'home' %}#eventos">Eventos</a>
@@ -70,6 +71,7 @@
       </div>
 
       <nav class="rodape__links" aria-label="Links">
+        <a href="{% url 'home' %}#trabalhos">Submissão de trabalhos</a>
         <a href="{% url 'cronograma' %}">Cronograma</a>
         <a href="{% url 'home' %}#eventos">Eventos e inscrições</a>
         <a href="{% url 'home' %}#sobre">Sobre a semana</a>

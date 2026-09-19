@@ -1,0 +1,30 @@
+{% extends "painel/base.html" %}
+
+{% block titulo %}Excluir cartão{% endblock %}
+
+{% block conteudo %}
+  <div class="confirmar">
+    <h1>Excluir cartão?</h1>
+
+    <p class="confirmar__pergunta">
+      Tem certeza que deseja excluir<br>
+      <strong>“{{ cartao.titulo }}”</strong>?
+    </p>
+
+    <p class="confirmar__detalhe">
+      {{ cartao.etiqueta }} · {{ cartao.area.nome }}<br>
+      Ele some da seção Eventos da página inicial.
+    </p>
+
+    <p class="confirmar__aviso">
+      Isso não pode ser desfeito. Para apenas tirá-lo do ar, volte e desmarque
+      <strong>publicado</strong>.
+    </p>
+
+    <form method="post" class="confirmar__acoes">
+      {% csrf_token %}
+      <a class="botao botao--linha" href="{% url 'painel:cartoes' %}">Cancelar</a>
+      <button type="submit" class="botao botao--apagar-cheio">Excluir cartão</button>
+    </form>
+  </div>
+{% endblock %}

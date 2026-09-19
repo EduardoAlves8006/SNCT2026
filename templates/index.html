@@ -43,6 +43,65 @@
     </div>
   </section>
 
+  <!-- ======================================================== trabalhos -->
+  <!--
+    O link e o prazo NÃO se mexem aqui: vêm do banco. A organização abre, fecha
+    e troca o endereço em /painel/ → "Submissão de trabalhos" (ou em /admin/),
+    e o botão aparece sozinho, sem reimplantar o site. Aqui só se edita o texto.
+  -->
+  <section class="chamada" id="trabalhos">
+    <div class="shell chamada__grade">
+
+      <div class="chamada__texto">
+        <p class="chamada__rotulo">
+          <span class="modulo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="rotulo rotulo--claro">Submissão de trabalhos</span>
+        </p>
+
+        <h2>Envie seu trabalho para a 23ª SNCT</h2>
+
+        <p class="lead">
+          Estudantes de qualquer curso podem inscrever trabalhos na semana.
+          É um formulário só, para o evento inteiro: não é por curso nem por
+          área, e não é preciso escolher evento.
+        </p>
+      </div>
+
+      <div class="envio"{% if submissao.mostra_botao %} data-aberto{% endif %}>
+        <p class="envio__rotulo">
+          {% if submissao.prazo %}Prazo de envio{% else %}Envio dos trabalhos{% endif %}
+        </p>
+
+        {% if submissao.prazo %}
+          <p class="envio__destaque">
+            <b>{{ submissao.prazo|date:"j" }}</b>
+            <span>de {{ submissao.prazo|date:"F"|lower }}</span>
+          </p>
+        {% else %}
+          <p class="envio__destaque envio__destaque--estado">
+            {% if submissao.mostra_botao %}Aberta{% else %}Em breve{% endif %}
+          </p>
+        {% endif %}
+
+        {% if submissao.mostra_botao %}
+          <a class="botao botao--acao botao--grande" href="{{ submissao.link }}"
+             target="_blank" rel="noopener">
+            Enviar meu trabalho <span class="seta" aria-hidden="true">→</span>
+          </a>
+          {% if submissao.prazo %}
+            <p class="envio__nota">Depois dessa data o formulário fecha.</p>
+          {% endif %}
+        {% else %}
+          <p class="envio__nota">
+            O formulário e o prazo são divulgados aqui. Vale conferir esta
+            página mais perto de outubro.
+          </p>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+
   <!-- ====================================================== programação -->
   <section class="dias" id="programacao">
     <div class="shell">
@@ -74,25 +133,14 @@
 
   <!-- =========================================================== eventos -->
   <!--
-    COMO EDITAR ESTA LISTA
+    Os sete cartões NÃO se editam aqui: são dados, e quem mexe é o
+    administrador em /painel/cartoes/. Título, responsável, descrição e a
+    programação resumida saem de lá; o botão de inscrição continua saindo do
+    curso/área, que é o que a coordenação controla em /painel/.
 
-    A inscrição de cada evento NÃO se mexe aqui. Ela vem do banco, e quem
-    mexe é a própria coordenação, em /painel/ → bloco "Inscrições": marcar
-    "inscrições abertas" e colar o link do SUAP já troca o "Inscrições em
-    breve" pelo botão vermelho, sem reimplantar o site. O administrador
-    também alcança isso por /admin/ → Cursos/áreas.
-
-    O que ainda se edita neste arquivo é o texto dos cartões:
-    - Responsável definido: troque
-        <span class="pendente">a confirmar</span>
-      por
-        <strong>Nome do Professor</strong>
-    - Título, descrição e a programação resumida de cada evento.
-
-    Cada cartão está amarrado a uma área pelo slug que aparece logo acima
-    dele, na linha "area=areas|por_slug". Se uma área for renomeada no
-    /admin/ e o slug mudar, ajuste o slug aqui também — senão o cartão fica
-    sem botão de inscrição.
+    O texto vem do banco escapado — quem digitar HTML no painel vê o HTML
+    como texto, e não como marcação. A única exceção é a palavra "Campus",
+    que o filtro |campus põe em itálico sozinha.
   -->
 
   <section class="secao" id="eventos">
@@ -106,174 +154,68 @@
         </p>
       </div>
 
+      <div class="guia" id="inscrever">
+        <div class="guia__cabeca">
+          <b>Como se inscrever</b>
+          <small>Pelo SUAP, evento por evento — em três passos</small>
+        </div>
+
+        <ol class="passos">
+          <li class="passo">
+            <p class="passo__n" aria-hidden="true">1</p>
+            <h3>Escolha o evento</h3>
+            <p>Cada um dos sete eventos abaixo tem inscrição própria. Dá para se
+            inscrever em mais de um.</p>
+          </li>
+          <li class="passo">
+            <p class="passo__n" aria-hidden="true">2</p>
+            <h3>Clique em “Inscreva-se”</h3>
+            <p>O botão vermelho do cartão leva direto ao formulário daquele
+            evento no SUAP.</p>
+          </li>
+          <li class="passo">
+            <p class="passo__n" aria-hidden="true">3</p>
+            <h3>Ainda não tem botão?</h3>
+            <p>Onde estiver escrito <b>“Inscrições em breve”</b>, a inscrição
+            daquele evento ainda não abriu. Vale conferir mais perto de outubro.</p>
+          </li>
+        </ol>
+
+        <p class="guia__nota">
+          A submissão de trabalhos é outra coisa, e é uma só para a semana
+          inteira: <a href="#trabalhos">ver como enviar</a>.
+        </p>
+      </div>
+
       <div class="grade-eventos">
-
-        <!-- 1 -->
-        {% with area=areas|por_slug:"cieec" %}
-        <article class="evento revela" style="--i:0"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">CIEEC</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>Feira das Profissões e Empreendedorismo</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · CIEEC
-          </p>
-          <p class="evento__desc">
-            Espaço dedicado à orientação profissional e ao empreendedorismo, reunindo
-            instituições de ensino, empresas parceiras e a Empresa Júnior. Inclui uma
-            roda de conversa sobre profissões, empreendedorismo e mercado de trabalho.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 27/10</span></summary>
-            <ul>
-              <li>Feira das Profissões</li>
-              <li>Espaço das Instituições de Ensino</li>
-              <li>Feira de Empreendedorismo</li>
-              <li>Estandes de empresas e instituições parceiras</li>
-              <li>Empresa Júnior e projetos de empreendedorismo</li>
-              <li>Roda de conversa: Profissões, Empreendedorismo e Mercado de Trabalho</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=cieec">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <!-- 2 -->
-        {% with area=areas|por_slug:"geral" %}
-        <article class="evento revela" style="--i:1"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">Abertura oficial</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>Solenidade de Lançamento e Mostras</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · Comissão organizadora
-          </p>
-          <p class="evento__desc">
-            Cerimônia oficial de abertura da 23ª Semana Nacional de Ciência e Tecnologia,
-            com mostras dos cursos técnicos e superiores do <i>Campus</i>.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 28/10</span></summary>
-            <ul>
-              <li>Cerimônia de abertura</li>
-              <li>Mostras dos cursos técnicos e superiores</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=geral">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <!-- 3 -->
-        {% with area=areas|por_slug:"agronomia-e-agropecuaria" %}
-        <article class="evento revela" style="--i:2"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">Agronomia e Agropecuária</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>SIAAGRO — Seminário Integrado de Agropecuária e Agronomia</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · Coordenação de Agronomia e Agropecuária
-          </p>
-          <p class="evento__desc">
-            Seminário com oficinas, demonstrações e visitações voltadas à cadeia produtiva
-            agropecuária, aberto a estudantes e à comunidade externa.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 29 e 30/10</span></summary>
-            <ul>
-              <li>Oficinas técnicas</li>
-              <li>Demonstrações práticas</li>
-              <li>Visitações guiadas</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=agronomia-e-agropecuaria">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <!-- 4 -->
-        {% with area=areas|por_slug:"alimentos" %}
-        <article class="evento revela" style="--i:3"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">Alimentos</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>Curso Técnico em Alimentos — Atividades da Semana</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · Coordenação do Curso Técnico em Alimentos
-          </p>
-          <p class="evento__desc">
-            Oficinas e demonstrações práticas de processamento e segurança de alimentos,
-            conduzidas por estudantes e docentes do curso técnico.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 29 e 30/10</span></summary>
-            <ul>
-              <li>Oficinas práticas</li>
-              <li>Demonstrações de processamento</li>
-              <li>Visitações</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=alimentos">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <!-- 5 — modelo de evento com inscrição aberta -->
-        {% with area=areas|por_slug:"informatica" %}
-        <article class="evento revela" style="--i:4"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
+        {% for cartao in cartoes %}
+        {% with area=cartao.area %}
+        <article class="evento revela" style="--i:{{ forloop.counter0 }}"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
           <p class="evento__topo">
-            <span class="trilha">Informática</span>
+            <span class="trilha">{{ cartao.etiqueta }}</span>
             {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}
           </p>
-          <h3>IFROmatizando — III Workshop de Informática</h3>
+
+          <h3>{{ cartao.titulo }}</h3>
+
           <p class="evento__responsavel">
-            Responsável: <strong>Eudóxia Moura</strong> · Coordenação de Informática
+            Responsável:
+            {% if cartao.responsavel %}<strong>{{ cartao.responsavel }}</strong>
+            {% else %}<span class="pendente">a confirmar</span>{% endif %}
+            {% if cartao.coordenacao %} · {{ cartao.coordenacao }}{% endif %}
           </p>
-          <p class="evento__desc">
-            Terceira edição do workshop de informática, com oficinas práticas e
-            demonstrações de projetos de desenvolvimento de sistemas.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 29 e 30/10</span></summary>
-            <ul>
-              <li>Oficinas de programação</li>
-              <li>Demonstrações de projetos</li>
-              <li>Visitações ao laboratório</li>
-            </ul>
-          </details>
+
+          <p class="evento__desc">{{ cartao.descricao|campus }}</p>
+
+          {% if cartao.itens_programacao %}
+            <details class="evento__prog">
+              <summary><span>Programação{% if cartao.programacao_rotulo %} · {{ cartao.programacao_rotulo }}{% endif %}</span></summary>
+              <ul>
+                {% for item in cartao.itens_programacao %}<li>{{ item|campus }}</li>{% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+
           <p class="evento__acao">
             {% if area.mostra_botao_inscricao %}
               <a class="botao botao--acao" href="{{ area.link_inscricao }}"
@@ -282,89 +224,12 @@
             {% else %}
               <span class="em-breve">Inscrições em breve</span>
             {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=informatica">
+            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area={{ area.slug }}">
               Ver horários <span class="seta" aria-hidden="true">→</span></a>
           </p>
         </article>
         {% endwith %}
-
-        <!-- 6 -->
-        {% with area=areas|por_slug:"biologia" %}
-        <article class="evento revela" style="--i:5"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">Biologia</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>Biologia — Oficinas e Demonstrações</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · Coordenação de Biologia
-          </p>
-          <p class="evento__desc">
-            Atividades práticas e demonstrações voltadas à divulgação científica em
-            Biologia, abertas a estudantes de outras escolas e à comunidade.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 29 e 30/10</span></summary>
-            <ul>
-              <li>Oficinas práticas</li>
-              <li>Demonstrações</li>
-              <li>Visitações</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=biologia">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <!-- 7 -->
-        {% with area=areas|por_slug:"medicina-veterinaria" %}
-        <article class="evento revela" style="--i:6"{% if area.mostra_botao_inscricao %} data-aberto{% endif %}>
-          <p class="evento__topo"><span class="trilha">Medicina Veterinária</span>
-            {% if area.inscricoes_abertas %}<span class="selo-aberto">Inscrições abertas</span>{% endif %}</p>
-          <h3>Medicina Veterinária — Oficinas e Demonstrações</h3>
-          <p class="evento__responsavel">
-            Responsável: <span class="pendente">a confirmar</span> · Coordenação de Medicina Veterinária
-          </p>
-          <p class="evento__desc">
-            Oficinas, demonstrações e visitações voltadas à área de saúde e manejo animal.
-          </p>
-          <details class="evento__prog">
-            <summary><span>Programação · 29 e 30/10</span></summary>
-            <ul>
-              <li>Oficinas práticas</li>
-              <li>Demonstrações de manejo</li>
-              <li>Visitações</li>
-            </ul>
-          </details>
-          <p class="evento__acao">
-            {% if area.mostra_botao_inscricao %}
-              <a class="botao botao--acao" href="{{ area.link_inscricao }}"
-                 target="_blank" rel="noopener">
-                Inscreva-se <span class="seta" aria-hidden="true">→</span></a>
-            {% else %}
-              <span class="em-breve">Inscrições em breve</span>
-            {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area=medicina-veterinaria">
-              Ver horários <span class="seta" aria-hidden="true">→</span></a>
-          </p>
-        </article>
-        {% endwith %}
-
-        <aside class="eventos__aviso revela" style="--i:7">
-          <span class="modulo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-          <b>Como se inscrever</b>
-          <p>As inscrições são feitas pelo SUAP, evento por evento. Os eventos que
-          ainda não têm link abrem inscrição em breve — vale conferir esta página
-          de novo mais perto de outubro.</p>
-        </aside>
-
+        {% endfor %}
       </div>
     </div>
   </section>
@@ -405,8 +270,12 @@
           <dd>Comunidade escolar do <i>Campus</i>, estudantes de outras escolas e público externo</dd>
         </div>
         <div>
+          <dt>Trabalhos</dt>
+          <dd>Submissão única para toda a semana, em <a href="#trabalhos">Enviar trabalho</a></dd>
+        </div>
+        <div>
           <dt>Inscrições</dt>
-          <dd>Pelo SUAP, uma por evento. Veja a lista em <a href="#eventos">Eventos</a></dd>
+          <dd>Pelo SUAP, uma por evento. Veja <a href="#inscrever">Como se inscrever</a></dd>
         </div>
         <div>
           <dt>Contato</dt>

@@ -194,6 +194,14 @@
   color: var(--vermelho-600);
 }
 
+/* Linha de apoio da submissão: diz o que o estado sozinho não diz (que é
+   uma só, e até quando). Discreta, para o estado continuar sendo o que salta. */
+.inscricao__nota {
+  margin-top: 1px;
+  font-size: var(--t-sm);
+  color: var(--tinta-2);
+}
+
 /* estado: mesma gramática do site — cheio é aberto, vazio é ainda não */
 .estado {
   display: inline-flex;
@@ -219,6 +227,34 @@
 
 .estado--falta { color: var(--vermelho-600); }
 .estado--falta::before { background: var(--vermelho); }
+
+/* atalho para as telas que só o administrador tem */
+.atalhos {
+  margin: calc(-1 * var(--s-md)) 0 var(--s-lg);
+}
+.atalhos a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2xs);
+  font: 700 var(--t-sm)/1.2 var(--fonte-display);
+  color: var(--verde-700);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+}
+.atalhos a:hover { border-bottom-color: var(--verde); }
+
+/* dois campos que são uma informação só, lado a lado */
+.campos-dupla {
+  display: grid;
+  gap: var(--s-sm);
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+/* cartão fora do ar: continua legível, mas não se confunde com os no ar */
+.cartao--fora { opacity: 0.66; }
+.cartao--fora .cartao__hora { color: var(--tinta-3); }
 
 /* --------------------------------------------------------- lista de eventos */
 
@@ -502,6 +538,7 @@
   .campos-quando { grid-template-columns: 1fr 1fr; }
   .campos-quando .campo:first-child { grid-column: 1 / -1; }
 
+  .campos-dupla { grid-template-columns: 1fr; }
   .inscricao { grid-template-columns: 1fr auto; }
   .inscricao .estado { grid-column: 1 / -1; }
 

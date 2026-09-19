@@ -1,0 +1,56 @@
+{% extends "painel/base.html" %}
+
+{% block titulo %}Cartões da página inicial{% endblock %}
+
+{% block conteudo %}
+
+  <p class="voltar"><a href="{% url 'painel:lista' %}">← Voltar para o cronograma</a></p>
+
+  <div class="painel__cabeca">
+    <div>
+      <h1>Cartões da página inicial</h1>
+      <p class="painel__quem">
+        Os cartões da seção <strong>Eventos</strong>. Só o administrador edita
+        — as coordenações não veem esta página.
+      </p>
+    </div>
+
+    <a class="botao botao--acao" href="{% url 'painel:cartao_novo' %}">+ Adicionar cartão</a>
+  </div>
+
+  {% if cartoes %}
+    <ul class="cartoes">
+      {% for c in cartoes %}
+        <li class="cartao{% if not c.publicado %} cartao--fora{% endif %}">
+          <p class="cartao__hora">{{ c.ordem }}<small>ordem</small></p>
+
+          <div class="cartao__corpo">
+            <h2 class="cartao__titulo">{{ c.titulo }}</h2>
+
+            <p class="cartao__meta">
+              <span class="trilha">{{ c.etiqueta }}</span>
+              <span>{{ c.area.nome }}</span>
+              {% if c.responsavel %}<span>{{ c.responsavel }}</span>
+              {% else %}<span class="pendente">responsável a confirmar</span>{% endif %}
+              {% if not c.publicado %}<span class="estado estado--breve">Fora do ar</span>{% endif %}
+            </p>
+
+            <p class="cartao__desc">{{ c.descricao|truncatechars:150 }}</p>
+          </div>
+
+          <p class="cartao__acoes">
+            <a class="botao botao--linha" href="{% url 'painel:cartao_editar' c.pk %}">Editar</a>
+            <a class="botao botao--apagar" href="{% url 'painel:cartao_excluir' c.pk %}">Excluir</a>
+          </p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="vazio">
+      <p class="vazio__titulo">Nenhum cartão cadastrado</p>
+      <p>A seção Eventos da página inicial fica vazia enquanto não houver nenhum.</p>
+      <p><a class="botao botao--acao" href="{% url 'painel:cartao_novo' %}">+ Adicionar cartão</a></p>
+    </div>
+  {% endif %}
+
+{% endblock %}

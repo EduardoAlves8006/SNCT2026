@@ -8,16 +8,20 @@ from datetime import date, time
 
 from django.contrib.auth.models import User
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 
-from .models import Area, Evento
+from .models import Area, Cartao, Evento, Submissao
 
 
 class Base(TestCase):
     @classmethod
     def setUpTestData(cls):
-        # A migração 0002 semeia as áreas reais da semana. Os testes montam o
-        # próprio cenário, então começam do zero para não depender dela.
+        # As migrações semeiam as áreas reais da semana e os cartões da página
+        # inicial. Os testes montam o próprio cenário, então começam do zero
+        # para não depender delas. Os cartões saem primeiro: a área é
+        # PROTECT, e é para ser assim — apagar um curso não pode levar junto,
+        # em silêncio, o cartão que fala dele.
+        Cartao.objects.all().delete()
         Area.objects.all().delete()
 
         cls.ads = Area.objects.create(nome="ADS", slug="ads")
@@ -113,11 +117,13 @@ class SitePublico(Base):
         self.assertContains(r, "Workshop de Flutter")
 
     def test_cartoes_da_home_apontam_para_o_cronograma_da_propria_area(self):
+        for area in [self.ads, self.info, self.eletro]:
+            Cartao.objects.create(area=area, titulo=f"Cartão {area.nome}", descricao="x")
+
         r = self.client.get(reverse("home"))
-        for slug in ["cieec", "geral", "agronomia-e-agropecuaria", "alimentos",
-                     "informatica", "biologia", "medicina-veterinaria"]:
-            with self.subTest(slug=slug):
-                self.assertContains(r, f'href="/cronograma/?area={slug}"')
+        for area in [self.ads, self.info, self.eletro]:
+            with self.subTest(slug=area.slug):
+                self.assertContains(r, f'href="/cronograma/?area={area.slug}"')
 
     def test_area_desativada_nao_aparece_no_publico(self):
         self.ads.ativo = False
@@ -142,8 +148,11 @@ class InscricaoNaHome(Base):
     """A inscrição é dado, não HTML: a organização abre e fecha pelo /admin/."""
 
     def setUp(self):
-        # os cartões da home apontam para os slugs reais da semana
+        # o estado da inscrição aparece no cartão daquela área
         self.cieec = Area.objects.create(nome="CIEEC", slug="cieec")
+        Cartao.objects.create(
+            area=self.cieec, titulo="Feira do CIEEC", descricao="Uma feira."
+        )
 
     def test_sem_link_mostra_em_breve(self):
         r = self.client.get(reverse("home"))
@@ -289,6 +298,7 @@ class InscricaoPeloPainel(Base):
         """O ciclo inteiro: coordenação abre no painel, visitante vê o botão."""
         cieec = Area.objects.create(nome="CIEEC", slug="cieec")
         cieec.gestores.add(self.coord_ads)
+        Cartao.objects.create(area=cieec, titulo="Feira do CIEEC", descricao="Uma feira.")
 
         self.entrar("coord_ads")
         self.client.post(
@@ -301,6 +311,329 @@ class InscricaoPeloPainel(Base):
         r = self.client.get(reverse("home"))
         self.assertContains(r, "inscricao/1/321/")
         self.assertContains(r, "Inscreva-se")
+
+
+class SubmissaoNaHome(Base):
+    """A submissão de trabalhos é uma só, e é dado — não HTML."""
+
+    def test_fechada_mostra_em_breve_e_nao_vaza_link(self):
+        s = Submissao.atual()
+        s.link = "https://forms.exemplo.invalid/trabalhos"
+        s.save()
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Em breve")
+        self.assertNotContains(r, "forms.exemplo.invalid")
+        self.assertNotContains(r, "Enviar meu trabalho")
+
+    def test_aberta_com_link_mostra_o_botao(self):
+        s = Submissao.atual()
+        s.aberta = True
+        s.link = "https://forms.exemplo.invalid/trabalhos"
+        s.save()
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "https://forms.exemplo.invalid/trabalhos")
+        self.assertContains(r, "Enviar meu trabalho")
+        # sem prazo marcado, o lugar grande do cartão diz o estado
+        self.assertContains(r, "Aberta")
+
+    def test_aberta_sem_link_nao_gera_botao_vazio(self):
+        s = Submissao.atual()
+        s.aberta = True
+        s.save()
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Em breve")
+        self.assertNotContains(r, "Enviar meu trabalho")
+        self.assertNotContains(r, 'href=""')
+        self.assertIs(s.mostra_botao, False)
+
+    def test_prazo_so_aparece_quando_preenchido(self):
+        s = Submissao.atual()
+        s.aberta = True
+        s.link = "https://forms.exemplo.invalid/trabalhos"
+        s.save()
+        self.assertNotContains(self.client.get(reverse("home")), "Envios at\u00e9")
+
+        s.prazo = date(2026, 10, 10)
+        s.save()
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Prazo de envio")
+        self.assertContains(r, "de outubro")
+
+    def test_a_secao_aparece_antes_da_programacao(self):
+        # a submissão é a primeira seção da página, e é isso que o pedido era
+        html = self.client.get(reverse("home")).content.decode()
+        self.assertLess(html.index('id="trabalhos"'), html.index('id="programacao"'))
+
+    def test_como_se_inscrever_fica_acima_dos_cartoes_e_sempre_aberto(self):
+        html = self.client.get(reverse("home")).content.decode()
+        self.assertIn('id="inscrever"', html)
+        self.assertIn("Como se inscrever", html)
+        # acima da grade, e não recolhido num <details>
+        self.assertLess(html.index('id="inscrever"'), html.index('class="grade-eventos"'))
+        self.assertIn("Escolha o evento", html)
+
+
+class SubmissaoPeloPainel(Base):
+    """Quem mexe na submissão é a organização: ela vale para o evento inteiro."""
+
+    url = reverse_lazy("painel:submissao")
+
+    def test_administrador_abre_a_submissao(self):
+        self.entrar("admin")
+        r = self.client.post(
+            self.url,
+            {"aberta": "on", "link": "https://forms.exemplo.invalid/trabalhos", "prazo": ""},
+        )
+        self.assertEqual(r.status_code, 302)
+
+        s = Submissao.atual()
+        self.assertTrue(s.aberta)
+        self.assertEqual(s.link, "https://forms.exemplo.invalid/trabalhos")
+
+    def test_link_sem_esquema_vira_https(self):
+        self.entrar("admin")
+        self.client.post(
+            self.url, {"aberta": "on", "link": "forms.exemplo.invalid/trabalhos", "prazo": ""}
+        )
+        self.assertEqual(
+            Submissao.atual().link, "https://forms.exemplo.invalid/trabalhos"
+        )
+
+    def test_link_invalido_e_recusado(self):
+        self.entrar("admin")
+        r = self.client.post(self.url, {"aberta": "on", "link": "isto não é um link", "prazo": ""})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(Submissao.atual().aberta)
+
+    def test_coordenacao_nao_abre_a_tela(self):
+        self.entrar("coord_ads")
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_coordenacao_nao_altera_por_post_direto(self):
+        self.entrar("coord_ads")
+        r = self.client.post(
+            self.url, {"aberta": "on", "link": "https://invasao.exemplo.invalid/", "prazo": ""}
+        )
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(Submissao.atual().aberta)
+        self.assertEqual(Submissao.atual().link, "")
+
+    def test_o_bloco_so_aparece_para_o_administrador(self):
+        self.entrar("admin")
+        self.assertContains(self.client.get(reverse("painel:lista")), "Submissão de trabalhos")
+
+        self.client.logout()
+        self.entrar("coord_ads")
+        r = self.client.get(reverse("painel:lista"))
+        self.assertNotContains(r, "Submissão de trabalhos")
+
+    def test_abrir_no_painel_muda_a_pagina_inicial(self):
+        self.assertContains(self.client.get(reverse("home")), "Em breve")
+
+        self.entrar("admin")
+        self.client.post(
+            self.url,
+            {"aberta": "on", "link": "https://forms.exemplo.invalid/t", "prazo": "2026-10-10"},
+        )
+
+        self.client.logout()
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "https://forms.exemplo.invalid/t")
+        self.assertContains(r, "Prazo de envio")
+        self.assertContains(r, "de outubro")
+
+    def test_e_sempre_a_mesma_linha(self):
+        # o modelo é de uma linha só: salvar de novo não cria uma segunda
+        Submissao.atual().save()
+        Submissao(aberta=True, link="https://forms.exemplo.invalid/x").save()
+        self.assertEqual(Submissao.objects.count(), 1)
+        self.assertTrue(Submissao.atual().aberta)
+
+
+class CartoesNaHome(Base):
+    """Os cartões da página inicial são dados, e o texto sai escapado."""
+
+    def setUp(self):
+        self.cartao = Cartao.objects.create(
+            area=self.ads,
+            trilha="Abertura oficial",
+            titulo="Abertura no laboratório",
+            coordenacao="Comissão organizadora",
+            descricao="Cerimônia de abertura no Campus.",
+            programacao_rotulo="28/10",
+            programacao="Cerimônia\nMostras dos cursos\n\n  ",
+            ordem=0,
+        )
+
+    def test_o_cartao_aparece_com_o_que_foi_cadastrado(self):
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Abertura no laboratório")
+        self.assertContains(r, "Abertura oficial")
+        self.assertContains(r, "Comissão organizadora")
+        self.assertContains(r, "Programação · 28/10")
+        self.assertContains(r, "<li>Cerimônia</li>", html=False)
+
+    def test_linhas_vazias_da_programacao_nao_viram_item(self):
+        self.assertEqual(self.cartao.itens_programacao, ["Cerimônia", "Mostras dos cursos"])
+
+    def test_sem_responsavel_mostra_a_confirmar(self):
+        self.assertContains(self.client.get(reverse("home")), "a confirmar")
+
+        self.cartao.responsavel = "Eudóxia Moura"
+        self.cartao.save()
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Eudóxia Moura")
+
+    def test_etiqueta_em_branco_usa_o_nome_do_curso(self):
+        self.cartao.trilha = ""
+        self.cartao.save()
+        self.assertEqual(self.cartao.etiqueta, "ADS")
+        self.assertContains(self.client.get(reverse("home")), "ADS")
+
+    def test_cartao_despublicado_some_do_site(self):
+        self.cartao.publicado = False
+        self.cartao.save()
+        self.assertNotContains(self.client.get(reverse("home")), "Abertura no laboratório")
+
+    def test_cartao_de_area_desativada_some_do_site(self):
+        self.ads.ativo = False
+        self.ads.save()
+        self.assertNotContains(self.client.get(reverse("home")), "Abertura no laboratório")
+
+    def test_html_digitado_no_painel_sai_como_texto(self):
+        self.cartao.descricao = '<script>alert(1)</script> e <b>negrito</b>'
+        self.cartao.save()
+        r = self.client.get(reverse("home"))
+        self.assertNotContains(r, "<script>")
+        self.assertNotContains(r, "<b>negrito</b>")
+        self.assertContains(r, "&lt;script&gt;")
+
+    def test_a_palavra_campus_sai_em_italico(self):
+        self.assertContains(self.client.get(reverse("home")), "no <i>Campus</i>")
+
+    def test_a_inscricao_continua_vindo_da_area(self):
+        # o cartão não guarda link de inscrição: quem manda nisso é a área
+        self.ads.inscricoes_abertas = True
+        self.ads.link_inscricao = "https://suap.exemplo.invalid/1/"
+        self.ads.save()
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "https://suap.exemplo.invalid/1/")
+        self.assertContains(r, "Inscreva-se")
+
+    def test_ordem_manda_na_sequencia(self):
+        Cartao.objects.create(
+            area=self.info, titulo="Primeiro de todos", descricao="x", ordem=-0
+        )
+        segundo = Cartao.objects.get(pk=self.cartao.pk)
+        segundo.ordem = 5
+        segundo.save()
+
+        html = self.client.get(reverse("home")).content.decode()
+        self.assertLess(html.index("Primeiro de todos"), html.index("Abertura no laboratório"))
+
+
+class CartoesPeloPainel(Base):
+    """Só o administrador edita os cartões — no GET e no POST."""
+
+    def setUp(self):
+        self.cartao = Cartao.objects.create(
+            area=self.ads, titulo="Cartão de teste", descricao="Texto.", ordem=0
+        )
+
+    def dados_do_cartao(self, **troca):
+        base = {
+            "titulo": "Cartão de teste",
+            "area": self.ads.pk,
+            "trilha": "",
+            "responsavel": "",
+            "coordenacao": "",
+            "descricao": "Texto.",
+            "programacao_rotulo": "",
+            "programacao": "",
+            "ordem": 0,
+            "publicado": "on",
+        }
+        base.update(troca)
+        return base
+
+    def test_administrador_cria_edita_e_exclui(self):
+        self.entrar("admin")
+
+        r = self.client.post(
+            reverse("painel:cartao_novo"), self.dados_do_cartao(titulo="Novo cartão")
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Cartao.objects.filter(titulo="Novo cartão").exists())
+
+        r = self.client.post(
+            reverse("painel:cartao_editar", args=[self.cartao.pk]),
+            self.dados_do_cartao(titulo="Título trocado"),
+        )
+        self.assertEqual(r.status_code, 302)
+        self.cartao.refresh_from_db()
+        self.assertEqual(self.cartao.titulo, "Título trocado")
+
+        r = self.client.post(reverse("painel:cartao_excluir", args=[self.cartao.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Cartao.objects.filter(pk=self.cartao.pk).exists())
+
+    def test_coordenacao_nao_abre_nenhuma_das_telas(self):
+        self.entrar("coord_ads")
+        urls = [
+            reverse("painel:cartoes"),
+            reverse("painel:cartao_novo"),
+            reverse("painel:cartao_editar", args=[self.cartao.pk]),
+            reverse("painel:cartao_excluir", args=[self.cartao.pk]),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_coordenacao_nao_edita_por_post_direto(self):
+        self.entrar("coord_ads")
+        r = self.client.post(
+            reverse("painel:cartao_editar", args=[self.cartao.pk]),
+            self.dados_do_cartao(titulo="Invadido"),
+        )
+        self.assertEqual(r.status_code, 404)
+        self.cartao.refresh_from_db()
+        self.assertEqual(self.cartao.titulo, "Cartão de teste")
+
+    def test_coordenacao_nao_exclui_por_post_direto(self):
+        self.entrar("coord_ads")
+        r = self.client.post(reverse("painel:cartao_excluir", args=[self.cartao.pk]))
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(Cartao.objects.filter(pk=self.cartao.pk).exists())
+
+    def test_get_nao_exclui(self):
+        self.entrar("admin")
+        self.client.get(reverse("painel:cartao_excluir", args=[self.cartao.pk]))
+        self.assertTrue(Cartao.objects.filter(pk=self.cartao.pk).exists())
+
+    def test_o_atalho_so_aparece_para_o_administrador(self):
+        self.entrar("admin")
+        self.assertContains(self.client.get(reverse("painel:lista")), "Cartões da página inicial")
+
+        self.client.logout()
+        self.entrar("coord_ads")
+        r = self.client.get(reverse("painel:lista"))
+        self.assertNotContains(r, "Cartões da página inicial")
+
+    def test_editar_no_painel_muda_a_pagina_inicial(self):
+        self.entrar("admin")
+        self.client.post(
+            reverse("painel:cartao_editar", args=[self.cartao.pk]),
+            self.dados_do_cartao(titulo="Aparece no site", descricao="Descrição nova."),
+        )
+        self.client.logout()
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, "Aparece no site")
+        self.assertContains(r, "Descrição nova.")
 
 
 class Saude(Base):
@@ -320,6 +653,10 @@ class Acesso(Base):
         urls = [
             reverse("painel:lista"),
             reverse("painel:novo"),
+            reverse("painel:inscricao", args=[self.ads.slug]),
+            reverse("painel:submissao"),
+            reverse("painel:cartoes"),
+            reverse("painel:cartao_novo"),
             reverse("painel:editar", args=[self.ev_ads.pk]),
             reverse("painel:excluir", args=[self.ev_ads.pk]),
         ]

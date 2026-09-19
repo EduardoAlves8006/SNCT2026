@@ -29,6 +29,8 @@ Aplicação Django + PostgreSQL, em container, sob o domínio
 | `/` | qualquer um | página da semana (a mesma de sempre) |
 | `/cronograma/` | qualquer um | cronograma, dia por dia, vindo do banco |
 | `/painel/` | coordenações | cadastrar os eventos das próprias áreas e abrir/fechar a inscrição delas |
+| `/painel/submissao/` | só o administrador | link e prazo da submissão de trabalhos |
+| `/painel/cartoes/` | só o administrador | os sete cartões da seção Eventos |
 | `/admin/` | só o administrador | contas, cursos/áreas e todos os eventos |
 
 A permissão é por **curso/área**. Uma conta de coordenação pode cuidar de uma
@@ -120,12 +122,49 @@ Sem link, a caixa marcada só mostra o selo "Inscrições abertas" e nenhum
 botão — de propósito, para não gerar link quebrado. O painel avisa isso com
 "Falta o link".
 
-### 5. Desativar uma conta
+### 5. Abrir a submissão de trabalhos
+
+A submissão é **uma só para a semana inteira** — não é por curso nem por
+evento —, então quem mexe nela é você, e não as coordenações. Em `/painel/`,
+no bloco "Submissão de trabalhos", clique em *Alterar*, marque **submissão
+aberta** e cole o link do formulário. O prazo é opcional: preenchido, a página
+mostra "Envios até …"; em branco, não fala em prazo.
+
+É a primeira seção da página inicial. Enquanto estiver fechada, ela mostra
+"A submissão abre em breve" no lugar do botão — a seção não some, para quem
+chega saber que vai existir.
+
+Uma coordenação que digite `/painel/submissao/` na barra de endereços recebe
+404: a checagem é no servidor, não em esconder o bloco da tela.
+
+### 6. Editar os cartões da página inicial
+
+Os sete cartões da seção **Eventos** também são dados: título, etiqueta,
+responsável, descrição e a programação resumida. Em `/painel/` há o atalho
+**Cartões da página inicial** — só você o vê; uma coordenação que digite
+`/painel/cartoes/` recebe 404.
+
+Algumas coisas que vale saber:
+
+- **Programação**: um item por linha. Sem nenhuma linha, o cartão não mostra a
+  lista recolhida.
+- **Etiqueta**: é o selo verde do alto. Em branco, usa o nome do curso/área —
+  serve para casos como “Abertura oficial”, que não é o nome de nenhum curso.
+- **Responsável** em branco vira “a confirmar” no site.
+- **Ordem**: menor primeiro. É por ela que se reordena a grade.
+- **Publicado**: desmarcado, o cartão sai do site sem ser apagado.
+- O **botão de inscrição não se define aqui** — ele vem do curso/área escolhido
+  no cartão, e quem controla isso é a coordenação (passo 4).
+- O texto é gravado como texto: digitar HTML ali aparece como HTML no site, em
+  vez de virar negrito. A única exceção é a palavra *Campus*, que o site põe em
+  itálico sozinho.
+
+### 7. Desativar uma conta
 
 **Usuários** → abra a conta → desmarque **Ativo**. Ela deixa de conseguir
 entrar, e os eventos que cadastrou continuam no lugar.
 
-### 6. Trocar uma senha
+### 8. Trocar uma senha
 
 **Usuários** → abra a conta → no campo de senha, clique no link para definir
 uma nova.
@@ -170,24 +209,25 @@ config/
   urls.py
 
 eventos/
-  models.py              Area, Evento e a função areas_do_usuario()
-  views.py               site público e painel
-  forms.py               formulário de evento (limita as áreas do usuário)
+  models.py              Area, Evento, Submissao, Cartao e areas_do_usuario()
+  views.py               site público e painel (@so_administrador fecha o que é só seu)
+  forms.py               formulários do painel
   admin.py               Django Admin, incluindo o campo de áreas no usuário
-  templatetags/snct.py   filtro que liga cada cartão da home à sua área
+  templatetags/snct.py   |campus, que põe a palavra Campus em itálico
   management/commands/   criar_admin: a conta inicial, a partir do .env
-  tests.py               56 testes, sobretudo de permissão
+  tests.py               88 testes, sobretudo de permissão
   migrations/
     0001_initial.py
-    0002_areas_iniciais.py       cria os cursos/áreas da semana
-    0003_inscricao_por_area.py   link e estado da inscrição
-    0004_link_do_ifromatizando.py
+    0002_areas_iniciais.py         cria os cursos/áreas da semana
+    0003_inscricao_por_area.py     link e estado da inscrição
+    0004_submissao_de_trabalhos.py a submissão, uma linha só
+    0005_cartoes_da_home.py        os sete cartões, com o texto que já estava no ar
 
 templates/
   base.html              cabeçalho, rodapé e meta tags do site público
   index.html             a página da semana
   cronograma.html        o cronograma público
-  painel/                as telas da coordenação
+  painel/                as telas da coordenação e do administrador
 
 static/
   css/style.css          o site
@@ -209,29 +249,41 @@ formulário chamam essa função, então mudar a regra é mudar uma função.
   mesma queryset que valida o POST
 - **Editar/excluir** — `get_object_or_404(..., area__in=areas_do_usuario(user))`
 - **Inscrição** — `get_object_or_404(areas_do_usuario(user), slug=slug)`
+- **Submissão de trabalhos e cartões da home** — valem para o evento inteiro,
+  então a porta é o decorador `@so_administrador`: quem não é superusuário
+  recebe 404, no GET e no POST
 - **Administrador** — `is_superuser` recebe todas as áreas ativas
 
 ---
 
 ## Sobre a página pública
 
-A página inicial não foi redesenhada nesta etapa. Ela virou um template Django
-(`templates/index.html`), com o cabeçalho e o rodapé movidos para
-`base.html` para não ficarem duplicados no cronograma.
+A página inicial é o template `templates/index.html`, com o cabeçalho e o
+rodapé em `base.html` para não ficarem duplicados no cronograma.
 
-As duas únicas mudanças visíveis foram as necessárias para o cronograma existir:
+A ordem das seções é:
 
-- **Cronograma** entrou como um item a mais no menu do topo;
-- a faixa "Como a semana se divide" ganhou o link *Ver o cronograma completo*.
+1. **herói** — data, tema e contagem regressiva;
+2. **Submissão de trabalhos** (`#trabalhos`) — a primeira seção: faixa escura
+   inteira, separada do herói por um fio vermelho, com um cartão claro à
+   direita. O cartão mostra o prazo em corpo grande quando há data, e o
+   estado (“Em breve”/“Aberta”) quando não há. Link e prazo vêm do banco;
+3. **Programação geral** (`#programacao`) — os quatro dias, em três cartões;
+4. **Eventos** (`#eventos`) — abre com o bloco **Como se inscrever**
+   (`#inscrever`, três passos, sempre visível) e depois os cartões, que vêm
+   do banco (`Cartao`) e se editam em `/painel/cartoes/`;
+5. **Sobre** (`#sobre`).
 
-O resto foi conferido comparando as capturas antes e depois: fora essas duas
-regiões, o que muda são bordas de 1px que caem em outro pixel por
-arredondamento de layout.
+Nada do que aparece nessas seções depende de reimplantação, exceto o texto:
+os dois estados que mudam durante a semana — inscrição por área e submissão de
+trabalhos — são dados, e se mexem pelo painel.
 
-Ainda falta preencher, na página inicial (`grep -n "a confirmar" templates/index.html`):
+Ainda falta preencher:
 
-- nome dos responsáveis de 6 dos 7 eventos;
-- contato da comissão organizadora.
+- o **responsável** de 6 dos 7 cartões — agora em `/painel/cartoes/`, sem
+  precisar de reimplantação;
+- o **contato da comissão organizadora**, que continua sendo texto fixo em
+  `templates/index.html` (`grep -n "a confirmar" templates/index.html`).
 
 Os links de inscrição **não** ficam mais no HTML: são cadastrados em
 /admin/ → Cursos/áreas, um por curso/área.

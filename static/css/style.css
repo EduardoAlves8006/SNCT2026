@@ -479,7 +479,109 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
-/* ------------------------------------------------------- 7. os quatro dias */
+/* -------------------------------------------- 7. submissão de trabalhos */
+
+/* A submissão é a única ação que vale para o evento inteiro. Ganha faixa
+   inteira, e não um cartão no meio do papel: é o que faz a seção ter
+   território próprio. O fio vermelho no topo é a costura com o herói — sem
+   ele, as duas faixas escuras viram uma mancha só. */
+.chamada {
+  background: var(--verde-950);
+  color: var(--sobre-verde);
+  border-top: 4px solid var(--vermelho);
+  padding-block: clamp(2.75rem, 5.5vw, 4.5rem);
+  line-height: 1.7;
+}
+
+.chamada__grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(19rem, 0.75fr);
+  gap: clamp(var(--s-lg), 5vw, var(--s-3xl));
+  align-items: center;
+}
+
+.chamada__rotulo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2xs);
+  margin-bottom: var(--s-sm);
+}
+.chamada__rotulo .modulo { --cel: 6px; color: var(--verde); }
+
+.chamada h2 { color: #fff; max-width: 15ch; }
+.chamada .lead { margin-top: var(--s-sm); color: var(--sobre-verde-2); }
+
+/* O cartão de envio. Claro sobre o escuro: é o único objeto da faixa, e por
+   isso é onde o olho para. O lugar grande no meio nunca fica vazio — quando
+   não há prazo ele diz o estado, que é a informação que existe. */
+.envio {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-2xs);
+  padding: clamp(var(--s-md), 2.5vw, var(--s-lg));
+  background: #fff;
+  color: var(--tinta);
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 50px -20px oklch(12% 0.04 149 / 0.55);
+}
+
+.envio__rotulo {
+  font-family: var(--fonte-display);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  font-stretch: 87%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+/* O dia em corpo grande e o mês embaixo: quebrar "26 de outubro" no meio
+   deixava um "de" órfão no fim da linha. Separado, a data vira número. */
+.envio__destaque {
+  font-family: var(--fonte-display);
+  font-weight: 800;
+  font-stretch: 104%;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--verde-900);
+}
+.envio__destaque b {
+  display: block;
+  font-size: clamp(3.25rem, 5.2vw, 4.5rem);
+  font-variant-numeric: tabular-nums;
+}
+.envio__destaque span {
+  display: block;
+  margin-top: var(--s-3xs);
+  font-size: var(--t-h3);
+  letter-spacing: -0.02em;
+}
+/* sem prazo, o lugar grande diz o estado — nunca fica vazio */
+.envio__destaque--estado {
+  font-size: clamp(2.25rem, 3.4vw, 3rem);
+  letter-spacing: -0.032em;
+  text-wrap: balance;
+}
+/* com prazo marcado, a data é uma data — e datas vêm em vermelho aqui */
+.envio[data-aberto] .envio__destaque { color: var(--vermelho-600); }
+
+.envio .botao--grande { margin-top: var(--s-xs); }
+
+.envio__nota {
+  margin-top: var(--s-3xs);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--tinta-2);
+  max-width: 34ch;
+}
+
+/* botão maior: é o único da página que não divide a linha com outro */
+.botao--grande {
+  padding: 1.0625rem 1.75rem;
+  font-size: var(--t-base);
+}
+
+/* ------------------------------------------------------- 8. os quatro dias */
 
 .dias {
   background: var(--papel-2);
@@ -493,25 +595,32 @@ a { color: inherit; }
   margin-bottom: var(--s-md);
 }
 .dias__cabeca h2 { font-size: var(--t-h3); }
+.dias__cabeca .rotulo { margin-bottom: var(--s-3xs); }
 
 .dias__lista {
   display: grid;
-  gap: var(--s-md);
+  gap: var(--s-sm);
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-top: var(--s-md);
 }
 
+/* cada dia é um objeto, e não uma coluna de texto: no papel cinza da faixa,
+   o branco é o que faz os três se lerem como três blocos */
 .dia {
   display: grid;
   gap: var(--s-2xs);
-  padding-top: var(--s-sm);
-  border-top: 2px solid var(--verde);
+  padding: var(--s-sm) var(--s-md) var(--s-md);
+  background: #fff;
+  border: 1px solid var(--linha);
+  border-top: 3px solid var(--verde);
+  border-radius: var(--r-md);
 }
 /* os blocos seguintes entram mais discretos: a leitura anda da esquerda */
-.dia:not(:first-child) { border-top-color: var(--linha-forte); }
+.dia:not(:first-child) { border-top-color: var(--verde-200); }
 
 .dia__data {
   font-family: var(--fonte-display);
-  font-size: clamp(1.75rem, 2.4vw, 2.125rem);
+  font-size: clamp(2.125rem, 2.9vw, 2.625rem);
   font-weight: 800;
   font-stretch: 104%;
   line-height: 1;
@@ -528,37 +637,14 @@ a { color: inherit; }
   text-transform: uppercase;
   color: var(--tinta-3);
 }
-.dia p {
-  font-size: var(--t-sm);
+.dia p:not(.dia__data) {
+  font-size: var(--t-base);
   line-height: 1.45;
   color: var(--tinta-2);
   max-width: 28ch;
 }
 
-/* ------------------------------------------------------------ 8. eventos */
-
-.eventos__aviso {
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-xs);
-  padding: var(--s-md);
-  background: var(--verde-100);
-  border: 1px solid var(--verde-200);
-  border-radius: var(--r-lg);
-  font-size: var(--t-sm);
-  line-height: 1.5;
-  color: var(--verde-800);
-}
-.eventos__aviso .modulo { --cel: 6px; color: var(--verde-600); }
-.eventos__aviso b {
-  font-family: var(--fonte-display);
-  font-size: var(--t-xs);
-  font-weight: 700;
-  font-stretch: 87%;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
+/* ------------------------------------------------------------ 9. eventos */
 
 .grade-eventos {
   display: grid;
@@ -749,7 +835,83 @@ a { color: inherit; }
   border-radius: 50%;
 }
 
-/* ---------------------------------------------------------- 9. sobre/info */
+/* -------------------------------------- 10. como se inscrever (bloco) */
+
+/* Fica acima da grade, sempre aberto: são três frases, e recolher isso só
+   escondia o que a pessoa precisa ler antes de olhar os cartões. */
+.guia {
+  margin-bottom: var(--s-lg);
+  padding: var(--s-md);
+  background: var(--verde-100);
+  border: 1px solid var(--verde-200);
+  border-radius: var(--r-lg);
+}
+
+.guia__cabeca { display: grid; gap: var(--s-3xs); }
+.guia__cabeca b {
+  font-family: var(--fonte-display);
+  font-size: var(--t-h3);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.014em;
+  color: var(--verde-900);
+}
+.guia__cabeca small {
+  font-size: var(--t-sm);
+  color: var(--verde-800);
+}
+
+.passos {
+  display: grid;
+  gap: var(--s-md);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin: var(--s-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passo {
+  display: grid;
+  gap: var(--s-3xs);
+  align-content: start;
+  padding-top: var(--s-xs);
+  border-top: 2px solid var(--verde-200);
+}
+/* o primeiro passo é por onde se começa: só ele leva o fio cheio */
+.passo:first-child { border-top-color: var(--verde); }
+
+.passo__n {
+  font-family: var(--fonte-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-stretch: 104%;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--verde-600);
+}
+.passo h3 {
+  font-size: var(--t-base);
+  font-stretch: 100%;
+  color: var(--verde-900);
+}
+.passo p:not(.passo__n) {
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--verde-800);
+}
+.passo b { font-weight: 700; }
+
+.guia__nota {
+  margin-top: var(--s-md);
+  padding-top: var(--s-xs);
+  border-top: 1px solid var(--verde-200);
+  font-size: var(--t-sm);
+  color: var(--verde-800);
+}
+.guia__nota a { color: var(--verde-700); font-weight: 600; }
+
+/* ---------------------------------------------------------- 11. sobre/info */
 
 .sobre { background: var(--papel-2); border-top: 1px solid var(--linha); }
 
@@ -792,7 +954,7 @@ a { color: inherit; }
 }
 .ficha dd a { color: var(--verde-700); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 
-/* --------------------------------------------------------------- 10. rodapé */
+/* --------------------------------------------------------------- 12. rodapé */
 
 .rodape {
   background: var(--verde-950);
@@ -836,7 +998,7 @@ a { color: inherit; }
    sem disputar espaço com o nome da instituição */
 .rodape__credito { color: var(--sobre-verde-2); }
 
-/* --------------------------------------------------------------- 11. motion */
+/* --------------------------------------------------------------- 13. motion */
 
 /* entrada do herói: escalonada, uma vez, e curta */
 .heroi__grade > * {
@@ -885,7 +1047,7 @@ a { color: inherit; }
   @keyframes aparece { from { opacity: 0; } to { opacity: 1; } }
 }
 
-/* ----------------------------------------------------------- 12. responsivo */
+/* ----------------------------------------------------------- 14. responsivo */
 
 /* cartão estreito: a programação recolhe sozinha para o cartão não virar coluna */
 @container (max-width: 22rem) {
@@ -896,6 +1058,15 @@ a { color: inherit; }
 @media (max-width: 62rem) {
   .sobre__grade { grid-template-columns: 1fr; }
   .rodape__grade { grid-template-columns: 1fr; }
+}
+
+/* a faixa da submissão deita antes das outras grades: o cartão de envio é
+   largo e espremê-lo contra o texto quebra o título em palavras soltas */
+@media (max-width: 56rem) {
+  .chamada__grade { grid-template-columns: 1fr; }
+  .chamada h2 { max-width: none; }
+  .envio { justify-items: stretch; }
+  .envio .botao { justify-content: center; }
 }
 
 @media (max-width: 48rem) {
@@ -936,7 +1107,7 @@ a { color: inherit; }
   .heroi::before { display: none; }
 }
 
-/* ------------------------------------------------------------ 13. impressão */
+/* ------------------------------------------------------------ 15. impressão */
 
 @media print {
   :root { --papel: #fff; }
@@ -960,7 +1131,7 @@ a { color: inherit; }
 }
 
 /* ==========================================================================
-   14. cronograma público
+   16. cronograma público
    Reaproveita os mesmos tokens, o mesmo módulo e a mesma gramática de
    estado ("a confirmar") do resto da página.
    ========================================================================== */

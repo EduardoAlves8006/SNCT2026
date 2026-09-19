@@ -86,7 +86,7 @@ Passe estas informações para a organização da SNCT:
 |---|---|
 | `https://snctifroari.online/` | o site |
 | `https://snctifroari.online/cronograma/` | o cronograma público |
-| `https://snctifroari.online/painel/` | onde as coordenações cadastram os eventos |
+| `https://snctifroari.online/painel/` | onde as coordenações cadastram os eventos e a organização edita os cartões e a submissão de trabalhos |
 | `https://snctifroari.online/admin/` | administração: contas, cursos/áreas e inscrições |
 
 **Primeira coisa a fazer:** entrar em `/admin/` com o usuário e a senha do
@@ -99,6 +99,10 @@ no `.env` do servidor.
 - **sete cursos/áreas**: Geral, CIEEC, Agronomia e Agropecuária, Alimentos,
   Informática, Biologia e Medicina Veterinária — todas ativas, todas com a
   inscrição fechada e sem link;
+- **a submissão de trabalhos**, fechada e sem link — a organização abre em
+  `/painel/` quando o formulário estiver pronto;
+- **os sete cartões** da seção Eventos da página inicial, com o texto que já
+  estava no ar; daí em diante são editados em `/painel/cartoes/`;
 - **nenhum evento**, e nenhuma conta de coordenação.
 
 O resto é cadastrado pelo site: o administrador cria as contas das
@@ -136,7 +140,9 @@ git pull
 docker compose up -d --build
 ```
 
-As migrações do banco rodam sozinhas quando o container sobe. Nada se perde.
+As migrações do banco rodam sozinhas quando o container sobe. Nada se perde, e
+**o `.env` não precisa ser tocado**: nenhuma atualização acrescenta campo novo
+lá. Se um dia acrescentar, este arquivo vai dizer explicitamente.
 
 ### Reiniciar
 

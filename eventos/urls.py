@@ -9,6 +9,11 @@ urlpatterns = [
     path("", views.lista, name="lista"),
     path("novo/", views.novo, name="novo"),
     path("inscricao/<slug:slug>/", views.inscricao, name="inscricao"),
+    path("submissao/", views.submissao, name="submissao"),
+    path("cartoes/", views.cartoes, name="cartoes"),
+    path("cartoes/novo/", views.cartao_novo, name="cartao_novo"),
+    path("cartoes/<int:pk>/editar/", views.cartao_editar, name="cartao_editar"),
+    path("cartoes/<int:pk>/excluir/", views.cartao_excluir, name="cartao_excluir"),
     path("<int:pk>/editar/", views.editar, name="editar"),
     path("<int:pk>/excluir/", views.excluir, name="excluir"),
     path(

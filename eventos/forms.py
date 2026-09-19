@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Area, Evento, areas_do_usuario
+from .models import Area, Cartao, Evento, Submissao, areas_do_usuario
 
 
 class EventoForm(forms.ModelForm):
@@ -70,3 +70,76 @@ class InscricaoDaAreaForm(forms.ModelForm):
         help_texts = {
             "inscricoes_abertas": "Desmarcado, o site mostra “Inscrições em breve”.",
         }
+
+
+class SubmissaoForm(forms.ModelForm):
+    """Submissão de trabalhos, no painel.
+
+    Quem pode mexer é decidido na view: a submissão é uma só para o evento
+    inteiro, então ela é da organização, não de uma coordenação.
+    """
+
+    link = forms.URLField(
+        label="Link da submissão",
+        required=False,
+        # Sem isso, colar o endereço sem o "https://" viraria http.
+        assume_scheme="https",
+        widget=forms.URLInput(attrs={"placeholder": "https://forms.gle/..."}),
+        help_text="Cole aqui o endereço do formulário de envio dos trabalhos.",
+    )
+
+    class Meta:
+        model = Submissao
+        fields = ["aberta", "link", "prazo"]
+        labels = {"aberta": "Submissão aberta", "prazo": "Prazo de envio"}
+        help_texts = {
+            "aberta": "Desmarcada, o site mostra “A submissão abre em breve”.",
+            "prazo": "Opcional. Em branco, a página não fala em prazo.",
+        }
+        widgets = {
+            # type="date" abre o seletor nativo, inclusive no celular.
+            "prazo": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+
+class CartaoForm(forms.ModelForm):
+    """Um cartão da página inicial. Só o administrador chega aqui.
+
+    O texto é gravado como texto puro: o template escapa tudo na hora de
+    mostrar, então digitar HTML aqui não vira marcação no site.
+    """
+
+    class Meta:
+        model = Cartao
+        fields = [
+            "titulo",
+            "area",
+            "trilha",
+            "responsavel",
+            "coordenacao",
+            "descricao",
+            "programacao_rotulo",
+            "programacao",
+            "ordem",
+            "publicado",
+        ]
+        widgets = {
+            "titulo": forms.TextInput(
+                attrs={"placeholder": "Ex.: Biologia — Oficinas e Demonstrações"}
+            ),
+            "trilha": forms.TextInput(attrs={"placeholder": "Ex.: Abertura oficial"}),
+            "responsavel": forms.TextInput(attrs={"placeholder": "Nome do professor"}),
+            "coordenacao": forms.TextInput(
+                attrs={"placeholder": "Ex.: Coordenação de Biologia"}
+            ),
+            "descricao": forms.Textarea(attrs={"rows": 4}),
+            "programacao_rotulo": forms.TextInput(attrs={"placeholder": "29 e 30/10"}),
+            "programacao": forms.Textarea(
+                attrs={"rows": 6, "placeholder": "Oficinas práticas\nDemonstrações\nVisitações"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["area"].queryset = Area.objects.filter(ativo=True)
+        self.fields["area"].empty_label = "Escolha o curso/área"

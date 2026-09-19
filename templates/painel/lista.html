@@ -23,6 +23,42 @@
     {% endif %}
   </div>
 
+  {% if user.is_superuser %}
+    <p class="atalhos">
+      <a href="{% url 'painel:cartoes' %}">Cartões da página inicial <span class="seta" aria-hidden="true">→</span></a>
+    </p>
+  {% endif %}
+
+  {% if submissao %}
+    <section class="inscricoes caixa">
+      <h2 class="inscricoes__titulo painel__rotulo">Submissão de trabalhos</h2>
+      <ul>
+        <li class="inscricao">
+          {% if submissao.mostra_botao %}
+            <span class="estado estado--aberta">Aberta</span>
+          {% elif submissao.aberta %}
+            <span class="estado estado--falta">Falta o link</span>
+          {% else %}
+            <span class="estado estado--breve">Em breve</span>
+          {% endif %}
+
+          <div>
+            <p class="inscricao__area">Envio de trabalhos</p>
+            {% if submissao.aberta and not submissao.link %}
+              <p class="inscricao__alerta">Nenhum botão aparece no site sem o link.</p>
+            {% else %}
+              <p class="inscricao__nota">
+                Uma só para toda a semana{% if submissao.prazo %} · envios até {{ submissao.prazo|date:"d/m/Y" }}{% endif %}.
+              </p>
+            {% endif %}
+          </div>
+
+          <a class="botao botao--linha" href="{% url 'painel:submissao' %}">Alterar</a>
+        </li>
+      </ul>
+    </section>
+  {% endif %}
+
   {% if areas %}
     <section class="inscricoes caixa">
       <h2 class="inscricoes__titulo painel__rotulo">Inscrições no site</h2>

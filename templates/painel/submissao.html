@@ -1,0 +1,58 @@
+{% extends "painel/base.html" %}
+
+{% block titulo %}Submissão de trabalhos{% endblock %}
+
+{% block conteudo %}
+  <p class="voltar"><a href="{% url 'painel:lista' %}">← Voltar para o cronograma</a></p>
+
+  <h1>Submissão de trabalhos</h1>
+  <p class="painel__quem">
+    É uma só para a semana inteira: o mesmo link vale para todos os cursos e
+    áreas. Ele aparece na primeira seção da página inicial.
+  </p>
+
+  <form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+
+    <div class="campo campo--caixa{% if form.aberta.errors %} campo--erro{% endif %}">
+      <label for="{{ form.aberta.id_for_label }}">
+        {{ form.aberta }}
+        {{ form.aberta.label }}
+      </label>
+      <p class="campo__ajuda">{{ form.aberta.help_text }}</p>
+    </div>
+
+    <div class="campo{% if form.link.errors %} campo--erro{% endif %}">
+      <label for="{{ form.link.id_for_label }}">
+        {{ form.link.label }} <span class="campo__opcional">(opcional)</span>
+      </label>
+      {{ form.link }}
+      {% if form.link.errors %}
+        {% for erro in form.link.errors %}<p class="campo__erro">{{ erro }}</p>{% endfor %}
+      {% else %}
+        <p class="campo__ajuda">{{ form.link.help_text }}</p>
+      {% endif %}
+    </div>
+
+    <div class="campo{% if form.prazo.errors %} campo--erro{% endif %}">
+      <label for="{{ form.prazo.id_for_label }}">
+        {{ form.prazo.label }} <span class="campo__opcional">(opcional)</span>
+      </label>
+      {{ form.prazo }}
+      {% if form.prazo.errors %}
+        {% for erro in form.prazo.errors %}<p class="campo__erro">{{ erro }}</p>{% endfor %}
+      {% else %}
+        <p class="campo__ajuda">{{ form.prazo.help_text }}</p>
+      {% endif %}
+    </div>
+
+    <p class="campo-fixo">
+      <span>Como está agora no site: <strong>{{ submissao.situacao }}</strong></span>
+    </p>
+
+    <div class="formulario__acoes">
+      <button type="submit" class="botao botao--acao">Salvar</button>
+      <a class="botao botao--linha" href="{% url 'painel:lista' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}
