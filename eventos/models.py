@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.urls import reverse
 from django.utils.text import slugify
 
 
@@ -258,6 +259,14 @@ class Cartao(models.Model):
         blank=True,
         help_text="Um item por linha. Sem nenhum, o cartão não mostra a lista.",
     )
+    link_horarios = models.URLField(
+        "link dos horários",
+        max_length=300,
+        blank=True,
+        help_text="Em branco, o botão “Ver horários” leva ao cronograma do "
+        "site. Preenchido, leva a este endereço — para um curso que publique "
+        "a programação em página própria.",
+    )
     ordem = models.PositiveSmallIntegerField(
         "ordem",
         default=0,
@@ -281,6 +290,23 @@ class Cartao(models.Model):
     def etiqueta(self):
         """O selo do alto. Sem etiqueta própria, é o nome do curso/área."""
         return self.trilha or self.area.nome
+
+    @property
+    def horarios_fora(self):
+        """Se o “Ver horários” sai do site. Decide o target do link."""
+        return bool(self.link_horarios)
+
+    @property
+    def url_horarios(self):
+        """Para onde vai o “Ver horários” deste cartão.
+
+        Por padrão, o cronograma do próprio site, já filtrado pela área. Um
+        curso que publique a programação em outro lugar põe o endereço em
+        `link_horarios` e o botão passa a apontar para lá.
+        """
+        if self.link_horarios:
+            return self.link_horarios
+        return f"{reverse('cronograma')}?area={self.area.slug}"
 
     @property
     def itens_programacao(self):

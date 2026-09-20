@@ -151,6 +151,10 @@ Algumas coisas que vale saber:
 - **Etiqueta**: é o selo verde do alto. Em branco, usa o nome do curso/área —
   serve para casos como “Abertura oficial”, que não é o nome de nenhum curso.
 - **Responsável** em branco vira “a confirmar” no site.
+- **Link dos horários**: em branco, o botão “Ver horários” leva ao cronograma
+  do site, filtrado por aquele curso. Preenchido, leva ao endereço informado e
+  abre em outra aba — é o caso do IFROmatizando, que publica a programação em
+  página própria.
 - **Ordem**: menor primeiro. É por ela que se reordena a grade.
 - **Publicado**: desmarcado, o cartão sai do site sem ser apagado.
 - O **botão de inscrição não se define aqui** — ele vem do curso/área escolhido
@@ -215,13 +219,14 @@ eventos/
   admin.py               Django Admin, incluindo o campo de áreas no usuário
   templatetags/snct.py   |campus, que põe a palavra Campus em itálico
   management/commands/   criar_admin: a conta inicial, a partir do .env
-  tests.py               88 testes, sobretudo de permissão
+  tests.py               91 testes, sobretudo de permissão
   migrations/
     0001_initial.py
     0002_areas_iniciais.py         cria os cursos/áreas da semana
     0003_inscricao_por_area.py     link e estado da inscrição
     0004_submissao_de_trabalhos.py a submissão, uma linha só
     0005_cartoes_da_home.py        os sete cartões, com o texto que já estava no ar
+    0006_link_de_horarios_proprio.py  horários fora do site, por cartão
 
 templates/
   base.html              cabeçalho, rodapé e meta tags do site público

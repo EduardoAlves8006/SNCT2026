@@ -514,6 +514,36 @@ class CartoesNaHome(Base):
     def test_a_palavra_campus_sai_em_italico(self):
         self.assertContains(self.client.get(reverse("home")), "no <i>Campus</i>")
 
+    def test_ver_horarios_leva_ao_cronograma_por_padrao(self):
+        self.assertEqual(self.cartao.url_horarios, "/cronograma/?area=ads")
+        self.assertIs(self.cartao.horarios_fora, False)
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, 'href="/cronograma/?area=ads"')
+
+    def test_link_proprio_tira_o_ver_horarios_do_site(self):
+        # um curso que publica a programação em página própria
+        self.cartao.link_horarios = "https://exemplo.invalid/horarios/"
+        self.cartao.save()
+
+        self.assertEqual(self.cartao.url_horarios, "https://exemplo.invalid/horarios/")
+        self.assertIs(self.cartao.horarios_fora, True)
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, 'href="https://exemplo.invalid/horarios/"')
+        self.assertNotContains(r, 'href="/cronograma/?area=ads"')
+        # link para fora abre em outra aba, e sem passar o referenciador
+        self.assertContains(r, 'rel="noopener"')
+
+    def test_o_link_proprio_e_so_daquele_cartao(self):
+        self.cartao.link_horarios = "https://exemplo.invalid/horarios/"
+        self.cartao.save()
+        outro = Cartao.objects.create(area=self.info, titulo="Outro", descricao="x")
+
+        r = self.client.get(reverse("home"))
+        self.assertContains(r, 'href="https://exemplo.invalid/horarios/"')
+        self.assertContains(r, f'href="/cronograma/?area={outro.area.slug}"')
+
     def test_a_inscricao_continua_vindo_da_area(self):
         # o cartão não guarda link de inscrição: quem manda nisso é a área
         self.ads.inscricoes_abertas = True
@@ -554,6 +584,7 @@ class CartoesPeloPainel(Base):
             "descricao": "Texto.",
             "programacao_rotulo": "",
             "programacao": "",
+            "link_horarios": "",
             "ordem": 0,
             "publicado": "on",
         }

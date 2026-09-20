@@ -120,6 +120,7 @@ class CartaoForm(forms.ModelForm):
             "descricao",
             "programacao_rotulo",
             "programacao",
+            "link_horarios",
             "ordem",
             "publicado",
         ]
@@ -136,6 +137,9 @@ class CartaoForm(forms.ModelForm):
             "programacao_rotulo": forms.TextInput(attrs={"placeholder": "29 e 30/10"}),
             "programacao": forms.Textarea(
                 attrs={"rows": 6, "placeholder": "Oficinas práticas\nDemonstrações\nVisitações"}
+            ),
+            "link_horarios": forms.URLInput(
+                attrs={"placeholder": "https://exemplo.github.io/pagina-do-curso/"}
             ),
         }
 

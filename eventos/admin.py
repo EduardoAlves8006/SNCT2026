@@ -95,6 +95,14 @@ class CartaoAdmin(admin.ModelAdmin):
         (None, {"fields": ("titulo", "area", "trilha")}),
         ("Quem responde", {"fields": ("responsavel", "coordenacao")}),
         ("Conteúdo", {"fields": ("descricao", "programacao_rotulo", "programacao")}),
+        (
+            "Horários",
+            {
+                "fields": ("link_horarios",),
+                "description": "Em branco, o botão “Ver horários” leva ao "
+                "cronograma do site.",
+            },
+        ),
         ("Na página", {"fields": ("ordem", "publicado")}),
     )
 

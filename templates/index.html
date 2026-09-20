@@ -224,7 +224,8 @@
             {% else %}
               <span class="em-breve">Inscrições em breve</span>
             {% endif %}
-            <a class="botao botao--sutil" href="{% url 'cronograma' %}?area={{ area.slug }}">
+            <a class="botao botao--sutil" href="{{ cartao.url_horarios }}"{% if cartao.horarios_fora %}
+               target="_blank" rel="noopener"{% endif %}>
               Ver horários <span class="seta" aria-hidden="true">→</span></a>
           </p>
         </article>

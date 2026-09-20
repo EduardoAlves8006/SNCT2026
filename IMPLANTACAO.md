@@ -102,7 +102,8 @@ no `.env` do servidor.
 - **a submissão de trabalhos**, fechada e sem link — a organização abre em
   `/painel/` quando o formulário estiver pronto;
 - **os sete cartões** da seção Eventos da página inicial, com o texto que já
-  estava no ar; daí em diante são editados em `/painel/cartoes/`;
+  estava no ar — inclusive o “Ver horários” do IFROmatizando, que aponta para
+  a página própria do curso; daí em diante são editados em `/painel/cartoes/`;
 - **nenhum evento**, e nenhuma conta de coordenação.
 
 O resto é cadastrado pelo site: o administrador cria as contas das
