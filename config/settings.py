@@ -228,6 +228,13 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = HTTPS_ATIVO
     CSRF_COOKIE_SECURE = HTTPS_ATIVO
 
+    if METRICS_ATIVO:
+        # O coletor fala com a aplicação por dentro, em HTTP, sem passar pelo
+        # proxy — então não manda X-Forwarded-Proto. Sem esta isenção o Django
+        # responderia 301 para https e as métricas nunca seriam lidas.
+        # Isentar é seguro: /metrics não recebe senha nem cookie.
+        SECURE_REDIRECT_EXEMPT = [r"^metrics$"]
+
     # HSTS obriga o navegador a só voltar por https, e fica lembrado por
     # semanas. Por isso só entra quando o https já está de pé.
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30 if HTTPS_ATIVO else 0
