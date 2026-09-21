@@ -46,6 +46,12 @@ if not SECRET_KEY:
     # Chave fixa só para desenvolvimento, para não invalidar a sessão a cada reinício.
     SECRET_KEY = "django-insecure-apenas-para-desenvolvimento-local"
 
+# Métricas no formato Prometheus em /metrics. Desligado por padrão: o endpoint
+# conta requisições, latência e consultas ao banco, e não deve ficar aberto na
+# internet. Só ligue quando houver um coletor e o /metrics estiver bloqueado na
+# borda — veja a seção "Métricas" do IMPLANTACAO.md.
+METRICS_ATIVO = env_bool("METRICS_ATIVO", False)
+
 # Domínios que podem servir a aplicação. Requisição com outro Host recebe 400.
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS") or [
     "snctifroari.online",
@@ -81,6 +87,9 @@ INSTALLED_APPS = [
     "eventos",
 ]
 
+if METRICS_ATIVO:
+    INSTALLED_APPS.append("django_prometheus")
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # O WhiteNoise serve CSS, JS e imagens em produção, sem precisar de nginx.
@@ -92,6 +101,13 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if METRICS_ATIVO:
+    # O par tem de envolver todo o resto: o "Before" marca o início da
+    # requisição e o "After" fecha a conta. Fora dessa ordem a latência medida
+    # exclui o trabalho dos middlewares do meio.
+    MIDDLEWARE.insert(0, "django_prometheus.middleware.PrometheusBeforeMiddleware")
+    MIDDLEWARE.append("django_prometheus.middleware.PrometheusAfterMiddleware")
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -123,6 +139,16 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+
+if METRICS_ATIVO:
+    # Troca o backend pelo equivalente instrumentado, que mede conexões e
+    # duração das consultas. É o mesmo driver por baixo — só embrulhado.
+    _BACKENDS_INSTRUMENTADOS = {
+        "django.db.backends.postgresql": "django_prometheus.db.backends.postgresql",
+        "django.db.backends.sqlite3": "django_prometheus.db.backends.sqlite3",
+    }
+    for _cfg in DATABASES.values():
+        _cfg["ENGINE"] = _BACKENDS_INSTRUMENTADOS.get(_cfg["ENGINE"], _cfg["ENGINE"])
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
