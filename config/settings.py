@@ -52,6 +52,12 @@ if not SECRET_KEY:
 # borda — veja a seção "Métricas" do IMPLANTACAO.md.
 METRICS_ATIVO = env_bool("METRICS_ATIVO", False)
 
+# Observação sobre métricas com mais de um worker: cada processo do gunicorn
+# teria seus próprios contadores, e o /metrics responderia o de um worker
+# sorteado — as contagens ficariam sem sentido (medimos 40 requisições virarem
+# 30 mil). A correção é a variável PROMETHEUS_MULTIPROC_DIR, definida no
+# Dockerfile porque o entrypoint também precisa dela. Veja gunicorn.conf.py.
+
 # Domínios que podem servir a aplicação. Requisição com outro Host recebe 400.
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS") or [
     "snctifroari.online",
