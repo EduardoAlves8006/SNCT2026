@@ -83,18 +83,32 @@
           </p>
         {% endif %}
 
+        {% comment %}
+          O botão não vai direto ao formulário: passa pela página de submissão,
+          onde estão o regulamento e o modelo. Enviar sem ler era o caminho
+          mais curto para um trabalho recusado na avaliação.
+        {% endcomment %}
         {% if submissao.mostra_botao %}
-          <a class="botao botao--acao botao--grande" href="{{ submissao.link }}"
-             target="_blank" rel="noopener">
+          <a class="botao botao--acao botao--grande" href="{% url 'trabalhos' %}">
             Enviar meu trabalho <span class="seta" aria-hidden="true">→</span>
           </a>
-          {% if submissao.prazo %}
-            <p class="envio__nota">Depois dessa data o formulário fecha.</p>
-          {% endif %}
+          <p class="envio__nota">
+            Regulamento, modelo e formulário de envio.
+            {% if submissao.prazo %}Depois dessa data o formulário fecha.{% endif %}
+          </p>
+        {% elif tem_pagina_de_trabalhos %}
+          <a class="botao botao--linha botao--grande" href="{% url 'trabalhos' %}">
+            Ver o regulamento <span class="seta" aria-hidden="true">→</span>
+          </a>
+          <p class="envio__nota">
+            Os documentos já estão publicados. O formulário de envio abre
+            depois, na mesma página.
+          </p>
         {% else %}
           <p class="envio__nota">
-            O formulário e o prazo são divulgados aqui. Vale conferir esta
-            página mais perto de outubro.
+            O formulário e o prazo são divulgados
+            <a href="{% url 'trabalhos' %}">na página da submissão</a>. Vale
+            conferir mais perto de outubro.
           </p>
         {% endif %}
       </div>

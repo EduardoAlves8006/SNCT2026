@@ -8,8 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import CartaoForm, EventoForm, InscricaoDaAreaForm, SubmissaoForm
-from .models import Area, Cartao, Evento, Submissao, areas_do_usuario
+from .forms import AnexoForm, CartaoForm, EventoForm, InscricaoDaAreaForm, SubmissaoForm
+from .models import Anexo, Area, Cartao, Evento, Submissao, areas_do_usuario
 
 # ---------------------------------------------------------------- site público
 
@@ -24,8 +24,48 @@ def home(request):
     return render(
         request,
         "index.html",
-        {"cartoes": cartoes, "submissao": Submissao.atual()},
+        {
+            "cartoes": cartoes,
+            "submissao": Submissao.atual(),
+            # O botão da seção de trabalhos leva à página de submissão. Ela
+            # só vale a visita se já houver documento para ler ou baixar —
+            # documento apenas anunciado não conta.
+            "tem_pagina_de_trabalhos": Anexo.objects.com_conteudo().exists(),
+        },
     )
+
+
+def trabalhos(request):
+    """Página da submissão: o que ler antes, e o link do envio no fim.
+
+    Existe separada da página inicial porque o que ela carrega — regulamento,
+    modelo de resumo, edital — é documento para baixar e ler com calma, e não
+    cabia num cartão da home.
+    """
+    submissao = Submissao.atual()
+    return render(
+        request,
+        "trabalhos.html",
+        {
+            "submissao": submissao,
+            "anexos": Anexo.objects.publicados(),
+            "pagina": "trabalhos",
+        },
+    )
+
+
+def documento(request, slug):
+    """Um documento lido no próprio site, sem baixar nada.
+
+    É o caso do regulamento: ele não muda durante a semana, e ter de abrir um
+    PDF no celular para conferir uma regra é atrito à toa. O PDF continua lá,
+    na página de submissão — esta é a mesma coisa em HTML.
+    """
+    anexo = get_object_or_404(Anexo.objects.publicados(), slug=slug)
+    if not anexo.tem_pagina:
+        # Sem texto não há página: o documento existe só como arquivo.
+        raise Http404
+    return render(request, "documento.html", {"anexo": anexo, "pagina": "trabalhos"})
 
 
 def saude(request):
@@ -251,6 +291,74 @@ def cartao_excluir(request, pk):
         return redirect("painel:cartoes")
 
     return render(request, "painel/cartao_excluir.html", {"cartao": cartao})
+
+
+# ------------------------------------------- documentos da submissão
+
+
+@so_administrador
+def anexos(request):
+    return render(request, "painel/anexos.html", {"anexos": Anexo.objects.all()})
+
+
+@so_administrador
+def anexo_novo(request):
+    if request.method == "POST":
+        # request.FILES junto: sem ele o arquivo enviado não chega ao form.
+        form = AnexoForm(request.POST, request.FILES)
+        if form.is_valid():
+            anexo = form.save()
+            messages.success(request, f"Documento “{anexo.titulo}” publicado.")
+            return redirect("painel:anexos")
+    else:
+        # o novo entra no fim da fila, e não empatado com o primeiro
+        ultimo = Anexo.objects.order_by("-ordem").first()
+        form = AnexoForm(initial={"ordem": (ultimo.ordem + 1) if ultimo else 0})
+
+    return render(
+        request,
+        "painel/anexo_form.html",
+        {"form": form, "titulo_pagina": "Novo documento"},
+    )
+
+
+@so_administrador
+def anexo_editar(request, pk):
+    anexo = get_object_or_404(Anexo, pk=pk)
+
+    if request.method == "POST":
+        form = AnexoForm(request.POST, request.FILES, instance=anexo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Documento “{anexo.titulo}” atualizado.")
+            return redirect("painel:anexos")
+    else:
+        form = AnexoForm(instance=anexo)
+
+    return render(
+        request,
+        "painel/anexo_form.html",
+        {"form": form, "anexo": anexo, "titulo_pagina": "Editar documento"},
+    )
+
+
+@so_administrador
+@require_http_methods(["GET", "POST"])
+def anexo_excluir(request, pk):
+    anexo = get_object_or_404(Anexo, pk=pk)
+
+    # GET mostra a confirmação; só o POST apaga de verdade.
+    if request.method == "POST":
+        titulo = anexo.titulo
+        # O Django não apaga o arquivo junto com a linha. Aqui apaga, senão o
+        # volume vai acumulando PDF que ninguém mais alcança.
+        if anexo.arquivo:
+            anexo.arquivo.delete(save=False)
+        anexo.delete()
+        messages.success(request, f"Documento “{titulo}” excluído.")
+        return redirect("painel:anexos")
+
+    return render(request, "painel/anexo_excluir.html", {"anexo": anexo})
 
 
 @login_required

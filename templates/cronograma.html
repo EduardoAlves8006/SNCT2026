@@ -59,6 +59,22 @@
                   {% if evento.descricao %}
                     <p class="crono-item__desc">{{ evento.descricao|linebreaksbr }}</p>
                   {% endif %}
+
+                  {% comment %}
+                    O link é o da própria atividade quando ela tem um; senão,
+                    é o do curso/área — o mesmo do cartão da página inicial.
+                  {% endcomment %}
+                  {% if evento.mostra_botao_inscricao %}
+                    <p class="crono-item__acao">
+                      <a class="botao botao--linha" href="{{ evento.url_inscricao }}"
+                         target="_blank" rel="noopener">
+                        Inscreva-se <span class="seta" aria-hidden="true">→</span>
+                      </a>
+                      {% if evento.inscricao_propria %}
+                        <span class="crono-item__nota">inscrição só desta atividade</span>
+                      {% endif %}
+                    </p>
+                  {% endif %}
                 </div>
               </li>
             {% endfor %}

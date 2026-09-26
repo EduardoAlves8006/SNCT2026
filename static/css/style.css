@@ -1248,6 +1248,18 @@ a { color: inherit; }
   color: var(--tinta-2);
 }
 
+/* A inscrição da atividade. Botão de linha, e não vermelho: numa lista de
+   vinte atividades, vinte botões vermelhos não destacariam nada. */
+.crono-item__acao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2xs) var(--s-xs);
+  margin-top: var(--s-3xs);
+}
+.crono-item__acao .botao { padding: 0.5rem 0.875rem; }
+.crono-item__nota { font-size: var(--t-xs); color: var(--tinta-3); }
+
 .crono-rodape {
   margin-top: var(--s-lg);
   font-size: var(--t-sm);
@@ -1279,4 +1291,183 @@ a { color: inherit; }
   .crono-item { grid-template-columns: 1fr; gap: var(--s-2xs); }
   .crono-dia__cabeca { flex-wrap: wrap; }
   .crono-dia__cabeca small { margin-left: 0; width: 100%; }
+}
+
+/* ==========================================================================
+   17. página de submissão de trabalhos
+   --------------------------------------------------------------------------
+   A página tem três tempos: o estado (quando fecha), o que ler antes, e o
+   envio. O envio fica no fim de propósito — é o último passo, e chegar nele
+   depois de passar pelos documentos é a ordem certa de ler.
+   ========================================================================== */
+
+/* a tarja de estado no herói: a data é o que a pessoa veio conferir */
+.estado {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2xs) var(--s-sm);
+  margin-top: var(--s-md);
+  padding: var(--s-2xs) var(--s-md);
+  border: 1px solid var(--sobre-verde-fina);
+  border-radius: 999px;
+  background: oklch(100% 0 0 / 0.06);
+}
+.estado__rotulo {
+  font-family: var(--fonte-display);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  font-stretch: 87%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sobre-verde-3);
+}
+.estado b {
+  font-family: var(--fonte-display);
+  font-size: var(--t-h3);
+  font-weight: 800;
+  font-stretch: 104%;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+/* os documentos: lista, e não grade. São poucos e de peso desigual — o
+   regulamento não é irmão do modelo de resumo —, e em linha cada um fica
+   com a largura do próprio texto em vez de esticar para fechar a coluna. */
+.docs {
+  display: grid;
+  gap: var(--s-sm);
+  list-style: none;
+  max-width: 56rem;
+}
+
+.doc {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md);
+  background: #fff;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-lg);
+  transition: border-color 140ms var(--saida), box-shadow 140ms var(--saida);
+}
+.doc:hover {
+  border-color: var(--linha-forte);
+  box-shadow: 0 12px 28px -18px oklch(22% 0.03 146 / 0.5);
+}
+
+/* a etiqueta de formato faz as vezes de ícone: diz PDF, DOCX ou "link" —
+   que é a única coisa que a pessoa precisa saber antes de clicar. */
+.doc__formato {
+  display: grid;
+  place-items: center;
+  min-width: 3.5rem;
+  padding: var(--s-2xs) var(--s-xs);
+  border-radius: var(--r-sm);
+  background: var(--verde-100);
+  color: var(--verde-800);
+  font: 800 var(--t-xs)/1 var(--fonte-display);
+  font-stretch: 87%;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.doc__corpo h3 {
+  font-size: var(--t-base);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.doc__desc {
+  margin-top: var(--s-3xs);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--tinta-2);
+}
+.doc__meta {
+  margin-top: var(--s-3xs);
+  font-size: var(--t-xs);
+  color: var(--tinta-3);
+}
+
+/* O envio, no fim da página. Era faixa escura e encostava no rodapé, também
+   escuro: as duas viravam uma mancha só e o botão se perdia bem onde ele
+   precisa ser visto. Como cartão claro sobre o papel, com o fio vermelho em
+   cima, ele volta a ser um objeto — e o único vermelho da página é o botão. */
+.secao--fecho { padding-block: clamp(1rem, 2vw, 1.5rem) var(--s-3xl); }
+
+.envio-final {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-2xs);
+  max-width: 48rem;
+  margin-inline: auto;
+  padding: clamp(var(--s-lg), 4vw, var(--s-2xl));
+  background: #fff;
+  border: 1px solid var(--linha);
+  border-top: 4px solid var(--vermelho);
+  border-radius: var(--r-lg);
+  box-shadow: 0 30px 60px -32px oklch(22% 0.03 146 / 0.55);
+  text-align: left;
+}
+.envio-final h2 {
+  font-size: clamp(1.75rem, 1.3rem + 2vw, 2.375rem);
+  max-width: 18ch;
+}
+.envio-final__nota {
+  max-width: 46ch;
+  line-height: 1.6;
+  color: var(--tinta-2);
+}
+.envio-final .botao--grande { margin-top: var(--s-sm); }
+/* fechado, o fio de cima não promete ação que ainda não existe */
+.envio-final:not(.envio-final--aberto) { border-top-color: var(--linha-forte); }
+
+/* documento lido no próprio site (o regulamento) */
+.voltar-publico { margin-bottom: var(--s-md); font-size: var(--t-sm); }
+.voltar-publico a { color: var(--verde-700); text-underline-offset: 2px; }
+
+.documento__baixar { margin-bottom: var(--s-xl); }
+
+.documento {
+  max-width: var(--prosa);
+  font-size: var(--t-base);
+  line-height: 1.7;
+  color: var(--tinta);
+}
+.documento h2 {
+  margin-top: var(--s-xl);
+  margin-bottom: var(--s-2xs);
+  font-size: var(--t-h3);
+  scroll-margin-top: 6rem;
+}
+.documento h2:first-child { margin-top: 0; }
+.documento p + p,
+.documento ul + p { margin-top: var(--s-sm); }
+.documento ul {
+  margin-top: var(--s-sm);
+  padding-left: var(--s-md);
+  list-style: disc;
+}
+.documento li + li { margin-top: var(--s-3xs); }
+
+.documento__fim {
+  margin-top: var(--s-2xl);
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--linha);
+}
+
+/* documento anunciado e ainda sem arquivo: fica na lista, mas sem prometer
+   botão — é a mesma ideia do "a confirmar" do resto do site */
+.doc--breve { background: var(--papel-2); border-style: dashed; }
+.doc--breve .doc__formato { background: var(--papel-3); color: var(--tinta-3); }
+.doc--breve h3 { color: var(--tinta-2); }
+
+@media (max-width: 40rem) {
+  /* o botão desce para a linha de baixo e ocupa a largura toda: em tela
+     estreita, três colunas deixavam o título em duas palavras por linha. */
+  .doc { grid-template-columns: auto minmax(0, 1fr); gap: var(--s-sm); }
+  .doc__acao { grid-column: 1 / -1; }
+  .doc__acao .botao { width: 100%; justify-content: center; }
 }

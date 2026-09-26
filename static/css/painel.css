@@ -230,6 +230,9 @@
 
 /* atalho para as telas que só o administrador tem */
 .atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2xs) var(--s-lg);
   margin: calc(-1 * var(--s-md)) 0 var(--s-lg);
 }
 .atalhos a {
@@ -243,6 +246,22 @@
   padding-bottom: 1px;
 }
 .atalhos a:hover { border-bottom-color: var(--verde); }
+
+/* dois botões na ponta da linha da submissão */
+.inscricao__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2xs);
+  justify-content: flex-end;
+}
+
+/* O seletor de arquivo tem cara de campo, mas quem desenha o botão de dentro
+   é o navegador — daí o padding menor, para o botão não encostar na borda. */
+.campo input[type="file"] {
+  padding: 0.5rem;
+  font-size: var(--t-sm);
+  background: var(--papel-2);
+}
 
 /* dois campos que são uma informação só, lado a lado */
 .campos-dupla {

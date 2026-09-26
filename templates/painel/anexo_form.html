@@ -1,0 +1,56 @@
+{% extends "painel/base.html" %}
+
+{% block titulo %}{{ titulo_pagina }}{% endblock %}
+
+{% block conteudo %}
+  <p class="voltar"><a href="{% url 'painel:anexos' %}">← Voltar para os documentos</a></p>
+
+  <h1>{{ titulo_pagina }}</h1>
+  <p class="painel__quem">
+    Envie o arquivo <strong>ou</strong> cole o link de um documento que já está
+    publicado em outro lugar — um dos dois, nunca os dois. Deixando os dois em
+    branco, o documento fica anunciado na página como <strong>em breve</strong>,
+    que é útil para o que já foi prometido e ainda não ficou pronto.
+  </p>
+
+  {# enctype: sem ele o navegador manda só o nome do arquivo, e nada é enviado. #}
+  <form method="post" class="formulario" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <p class="aviso aviso--error">{{ form.non_field_errors|join:" " }}</p>
+    {% endif %}
+
+    {% for campo in form.visible_fields %}
+      {% if campo.name == "ordem" %}<div class="campos-dupla">{% endif %}
+
+      <div class="campo{% if campo.errors %} campo--erro{% endif %}{% if campo.name == 'publicado' %} campo--caixa{% endif %}">
+        {% if campo.name == "publicado" %}
+          <label for="{{ campo.id_for_label }}">{{ campo }} {{ campo.label }}</label>
+        {% else %}
+          <label for="{{ campo.id_for_label }}">
+            {{ campo.label }}{% if not campo.field.required %} <span class="campo__opcional">(opcional)</span>{% endif %}
+          </label>
+          {{ campo }}
+        {% endif %}
+
+        {% if campo.help_text and not campo.errors %}
+          <p class="campo__ajuda">{{ campo.help_text }}</p>
+        {% endif %}
+        {% for erro in campo.errors %}<p class="campo__erro">{{ erro }}</p>{% endfor %}
+      </div>
+
+      {% if campo.name == "publicado" %}</div>{% endif %}
+    {% endfor %}
+
+    <div class="formulario__acoes">
+      <button type="submit" class="botao botao--acao">
+        {% if anexo %}Salvar alterações{% else %}Publicar documento{% endif %}
+      </button>
+      <a class="botao botao--linha" href="{% url 'painel:anexos' %}">Cancelar</a>
+      {% if anexo %}
+        <a class="botao botao--apagar" href="{% url 'painel:anexo_excluir' anexo.pk %}">Excluir</a>
+      {% endif %}
+    </div>
+  </form>
+{% endblock %}

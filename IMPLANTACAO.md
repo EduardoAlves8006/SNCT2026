@@ -101,6 +101,10 @@ no `.env` do servidor.
   inscrição fechada e sem link;
 - **a submissão de trabalhos**, fechada e sem link — a organização abre em
   `/painel/` quando o formulário estiver pronto;
+- **três documentos da submissão anunciados e sem arquivo** — Regulamento,
+  Template de Trabalho Completo e Template de Resumo Simples: a página os
+  mostra como “em breve” até a organização enviar os arquivos em
+  `/painel/anexos/`, que ficam no volume `dados`;
 - **os sete cartões** da seção Eventos da página inicial, com o texto que já
   estava no ar — inclusive o “Ver horários” do IFROmatizando, que aponta para
   a página própria do curso; daí em diante são editados em `/painel/cartoes/`;
@@ -134,6 +138,25 @@ Para restaurar:
 gunzip -c snct-2026-10-20.sql.gz | docker compose exec -T db psql -U snct -d snct
 ```
 
+### Backup dos documentos da submissão
+
+O regulamento, o modelo de resumo e os outros arquivos enviados pelo painel
+**não estão no banco**: ficam no volume `dados`, em `/dados/midia`. O banco
+guarda só o nome de cada arquivo, então restaurar o banco sem restaurar estes
+arquivos deixa os links apontando para o vazio.
+
+```bash
+docker compose exec -T web tar -cz -C /dados midia > midia-$(date +%F).tar.gz
+```
+
+Para restaurar:
+
+```bash
+gunzip -c midia-2026-10-20.tar.gz | docker compose exec -T web tar -x -C /dados
+```
+
+São poucos megabytes. Vale rodar junto com o backup do banco.
+
 ### Atualizar o site
 
 ```bash
@@ -144,6 +167,11 @@ docker compose up -d --build
 As migrações do banco rodam sozinhas quando o container sobe. Nada se perde, e
 **o `.env` não precisa ser tocado**: nenhuma atualização acrescenta campo novo
 lá. Se um dia acrescentar, este arquivo vai dizer explicitamente.
+
+O `--build` refaz a imagem do zero, então nada que esteja *dentro* dela
+sobrevive. É por isso que os arquivos enviados pelo painel vão para
+`/dados/midia`, no volume — o `docker-compose.yml` já traz a variável
+`MEDIA_ROOT` apontando para lá, e ela vem do repositório, não do `.env`.
 
 ### Reiniciar
 
@@ -157,7 +185,7 @@ administrador são idempotentes, e trocar a senha pelo site não é desfeito.
 ### O que NÃO fazer
 
 **Nunca rode `docker compose down -v`.** O `-v` apaga os volumes, e com eles o
-banco inteiro e os certificados. Para parar sem perder nada:
+banco inteiro, os documentos da submissão e os certificados. Para parar sem perder nada:
 
 ```bash
 docker compose down          # sem o -v

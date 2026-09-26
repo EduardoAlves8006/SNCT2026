@@ -4,13 +4,18 @@ Todo teste de permissão aqui bate direto na URL, com POST de verdade. Esconder
 o botão na tela não conta — o que conta é o servidor recusar.
 """
 
+import pathlib
+import shutil
+import tempfile
 from datetime import date, time
 
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse, reverse_lazy
 
-from .models import Area, Cartao, Evento, Submissao
+from .models import Anexo, Area, Cartao, Evento, Submissao
 
 
 class Base(TestCase):
@@ -333,8 +338,10 @@ class SubmissaoNaHome(Base):
         s.save()
 
         r = self.client.get(reverse("home"))
-        self.assertContains(r, "https://forms.exemplo.invalid/trabalhos")
         self.assertContains(r, "Enviar meu trabalho")
+        # o botão leva à página de submissão, e não direto ao formulário
+        self.assertContains(r, f'href="{reverse("trabalhos")}"')
+        self.assertNotContains(r, "https://forms.exemplo.invalid/trabalhos")
         # sem prazo marcado, o lugar grande do cartão diz o estado
         self.assertContains(r, "Aberta")
 
@@ -441,9 +448,13 @@ class SubmissaoPeloPainel(Base):
 
         self.client.logout()
         r = self.client.get(reverse("home"))
-        self.assertContains(r, "https://forms.exemplo.invalid/t")
+        self.assertContains(r, "Enviar meu trabalho")
         self.assertContains(r, "Prazo de envio")
         self.assertContains(r, "de outubro")
+        # o formulário em si está na página de submissão
+        self.assertContains(
+            self.client.get(reverse("trabalhos")), "https://forms.exemplo.invalid/t"
+        )
 
     def test_e_sempre_a_mesma_linha(self):
         # o modelo é de uma linha só: salvar de novo não cria uma segunda
@@ -665,6 +676,432 @@ class CartoesPeloPainel(Base):
         r = self.client.get(reverse("home"))
         self.assertContains(r, "Aparece no site")
         self.assertContains(r, "Descrição nova.")
+
+
+# MEDIA_ROOT próprio: teste que envia arquivo não escreve na pasta de verdade.
+MIDIA_DE_TESTE = tempfile.mkdtemp(prefix="snct-teste-midia-")
+
+
+@override_settings(MEDIA_ROOT=MIDIA_DE_TESTE)
+class PaginaDeTrabalhos(Base):
+    """A página de submissão: os documentos primeiro, o envio no fim."""
+
+    url = reverse_lazy("trabalhos")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(MIDIA_DE_TESTE, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        # A migração 0009 semeia os três documentos anunciados; estes testes
+        # montam o próprio cenário. O delete volta atrás no fim de cada teste.
+        Anexo.objects.all().delete()
+
+    def abrir(self):
+        s = Submissao.atual()
+        s.aberta = True
+        s.link = "https://forms.exemplo.invalid/trabalhos"
+        s.save()
+        return s
+
+    def test_a_pagina_existe_mesmo_sem_documento_nenhum(self):
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "ainda não foram publicados")
+
+    def test_fechada_nao_vaza_o_link_do_formulario(self):
+        s = Submissao.atual()
+        s.link = "https://forms.exemplo.invalid/trabalhos"
+        s.save()
+
+        r = self.client.get(self.url)
+        self.assertNotContains(r, "forms.exemplo.invalid")
+        self.assertContains(r, "abre em breve")
+
+    def test_aberta_mostra_o_botao_de_envio(self):
+        self.abrir()
+        r = self.client.get(self.url)
+        self.assertContains(r, "https://forms.exemplo.invalid/trabalhos")
+        self.assertContains(r, "Enviar meu trabalho")
+
+    def test_os_documentos_vem_antes_do_botao_de_envio(self):
+        self.abrir()
+        Anexo.objects.create(titulo="Regulamento", link="https://exemplo.invalid/reg.pdf")
+
+        html = self.client.get(self.url).content.decode()
+        self.assertLess(html.index("Regulamento"), html.index('id="enviar"'))
+
+    def test_documento_fora_do_ar_nao_aparece(self):
+        Anexo.objects.create(
+            titulo="Edital antigo", link="https://exemplo.invalid/velho.pdf", publicado=False
+        )
+        Anexo.objects.create(titulo="Regulamento", link="https://exemplo.invalid/reg.pdf")
+
+        r = self.client.get(self.url)
+        self.assertContains(r, "Regulamento")
+        self.assertNotContains(r, "Edital antigo")
+
+    def test_a_ordem_e_a_do_campo_ordem(self):
+        Anexo.objects.create(titulo="Segundo", link="https://exemplo.invalid/2", ordem=2)
+        Anexo.objects.create(titulo="Primeiro", link="https://exemplo.invalid/1", ordem=1)
+
+        html = self.client.get(self.url).content.decode()
+        self.assertLess(html.index("Primeiro"), html.index("Segundo"))
+
+    def test_arquivo_enviado_e_servido_pelo_site(self):
+        anexo = Anexo(titulo="Regulamento")
+        anexo.arquivo.save("regulamento.pdf", SimpleUploadedFile("regulamento.pdf", b"%PDF-1.4 "))
+
+        r = self.client.get(self.url)
+        self.assertContains(r, anexo.arquivo.url)
+        self.assertContains(r, "PDF")
+        # arquivo do próprio site baixa; só o de fora abre em outra aba
+        self.assertContains(r, "Baixar")
+        self.assertContains(r, "download")
+        self.assertNotContains(r, "Abrir")
+
+    def test_documento_de_fora_abre_em_outra_aba(self):
+        Anexo.objects.create(titulo="Pasta no Drive", link="https://drive.exemplo.invalid/pasta")
+
+        r = self.client.get(self.url)
+        self.assertContains(r, "https://drive.exemplo.invalid/pasta")
+        self.assertContains(r, "Abrir")
+
+    def test_o_texto_do_documento_sai_escapado(self):
+        Anexo.objects.create(
+            titulo="Regulamento",
+            descricao="<script>alert(1)</script>",
+            link="https://exemplo.invalid/reg.pdf",
+        )
+        r = self.client.get(self.url)
+        self.assertNotContains(r, "<script>alert(1)</script>")
+        self.assertContains(r, "&lt;script&gt;")
+
+    def test_a_home_so_oferece_o_regulamento_quando_ha_documento(self):
+        # fechada e sem documento: nada a visitar, só o aviso
+        self.assertNotContains(self.client.get(reverse("home")), "Ver o regulamento")
+
+        Anexo.objects.create(titulo="Regulamento", link="https://exemplo.invalid/reg.pdf")
+        self.assertContains(self.client.get(reverse("home")), "Ver o regulamento")
+
+
+@override_settings(MEDIA_ROOT=MIDIA_DE_TESTE)
+class AnexosPeloPainel(Base):
+    """Os documentos são da organização: só o administrador mexe."""
+
+    url = reverse_lazy("painel:anexos")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(MIDIA_DE_TESTE, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        Anexo.objects.all().delete()
+
+    def dados(self, **mudancas):
+        base = {
+            "titulo": "Regulamento",
+            "descricao": "As regras da submissão.",
+            "link": "https://exemplo.invalid/regulamento.pdf",
+            "ordem": "0",
+            "publicado": "on",
+        }
+        base.update(mudancas)
+        return base
+
+    def test_administrador_publica_um_documento(self):
+        self.entrar("admin")
+        r = self.client.post(reverse("painel:anexo_novo"), self.dados())
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Anexo.objects.get().titulo, "Regulamento")
+
+    def test_administrador_envia_um_arquivo(self):
+        self.entrar("admin")
+        arquivo = SimpleUploadedFile("modelo.docx", b"PK\x03\x04 conteudo")
+        r = self.client.post(
+            reverse("painel:anexo_novo"),
+            self.dados(titulo="Modelo", link="", arquivo=arquivo),
+        )
+        self.assertEqual(r.status_code, 302)
+
+        anexo = Anexo.objects.get()
+        self.assertTrue(anexo.arquivo.name.endswith(".docx"))
+        self.assertEqual(anexo.formato, "DOCX")
+        self.assertFalse(anexo.externo)
+
+    def test_arquivo_e_link_juntos_sao_recusados(self):
+        self.entrar("admin")
+        r = self.client.post(
+            reverse("painel:anexo_novo"),
+            self.dados(arquivo=SimpleUploadedFile("reg.pdf", b"%PDF-1.4 ")),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Anexo.objects.count(), 0)
+
+    def test_sem_arquivo_e_sem_link_fica_como_em_breve(self):
+        # documento anunciado e ainda não pronto: entra, mas sem botão
+        self.entrar("admin")
+        r = self.client.post(reverse("painel:anexo_novo"), self.dados(link=""))
+        self.assertEqual(r.status_code, 302)
+
+        anexo = Anexo.objects.get()
+        self.assertFalse(anexo.disponivel)
+        self.assertEqual(anexo.formato, "em breve")
+        self.assertEqual(anexo.url, "")
+
+        self.client.logout()
+        pagina = self.client.get(reverse("trabalhos"))
+        self.assertContains(pagina, "Regulamento")
+        self.assertContains(pagina, "Ainda não publicado")
+        self.assertNotContains(pagina, 'href=""')
+
+    def test_o_slug_sai_do_titulo(self):
+        self.entrar("admin")
+        self.client.post(reverse("painel:anexo_novo"), self.dados(titulo="Regulamento da SNCT"))
+        self.assertEqual(Anexo.objects.get().slug, "regulamento-da-snct")
+
+    @override_settings(TAMANHO_MAXIMO_ANEXO=1024)
+    def test_arquivo_grande_demais_e_recusado(self):
+        # O limite é de verdade 30 MB; aqui ele é apertado para o teste não
+        # precisar carregar 30 MB na memória só para ver a recusa acontecer.
+        self.entrar("admin")
+        grande = SimpleUploadedFile("enorme.pdf", b"x" * 2048)
+        r = self.client.post(
+            reverse("painel:anexo_novo"), self.dados(link="", arquivo=grande)
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Anexo.objects.count(), 0)
+
+    def test_o_limite_de_envio_e_de_30_mb(self):
+        # Um regulamento digitalizado passa dos 10 MB com facilidade.
+        self.assertEqual(settings.TAMANHO_MAXIMO_ANEXO, 30 * 1024 * 1024)
+
+    def test_excluir_apaga_o_arquivo_do_disco(self):
+        self.entrar("admin")
+        anexo = Anexo(titulo="Modelo")
+        anexo.arquivo.save("modelo.docx", SimpleUploadedFile("modelo.docx", b"conteudo"))
+        caminho = anexo.arquivo.path
+
+        self.client.post(reverse("painel:anexo_excluir", args=[anexo.pk]))
+        self.assertEqual(Anexo.objects.count(), 0)
+        self.assertFalse(pathlib.Path(caminho).exists())
+
+    def test_coordenacao_nao_abre_a_lista(self):
+        self.entrar("coord_ads")
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_coordenacao_nao_publica_por_post_direto(self):
+        self.entrar("coord_ads")
+        r = self.client.post(reverse("painel:anexo_novo"), self.dados())
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(Anexo.objects.count(), 0)
+
+    def test_coordenacao_nao_exclui_por_post_direto(self):
+        anexo = Anexo.objects.create(titulo="Regulamento", link="https://exemplo.invalid/r.pdf")
+        self.entrar("coord_ads")
+        r = self.client.post(reverse("painel:anexo_excluir", args=[anexo.pk]))
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(Anexo.objects.count(), 1)
+
+    def test_visitante_nao_chega_nem_na_lista(self):
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(reverse("painel:entrar"), r["Location"])
+
+    def test_get_nao_exclui(self):
+        anexo = Anexo.objects.create(titulo="Regulamento", link="https://exemplo.invalid/r.pdf")
+        self.entrar("admin")
+        r = self.client.get(reverse("painel:anexo_excluir", args=[anexo.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Anexo.objects.count(), 1)
+
+    def test_publicar_pelo_painel_muda_a_pagina_de_submissao(self):
+        self.assertContains(self.client.get(reverse("trabalhos")), "ainda não foram publicados")
+
+        self.entrar("admin")
+        self.client.post(reverse("painel:anexo_novo"), self.dados())
+
+        self.client.logout()
+        r = self.client.get(reverse("trabalhos"))
+        self.assertContains(r, "Regulamento")
+        self.assertContains(r, "https://exemplo.invalid/regulamento.pdf")
+
+
+class InscricaoNoCronograma(Base):
+    """Cada atividade pode ter inscrição própria; sem ela, vale a do curso."""
+
+    url = reverse_lazy("cronograma")
+    LINK_DA_AREA = "https://suap.ifro.edu.br/eventos/inscricao/1/111/"
+    LINK_DO_EVENTO = "https://suap.ifro.edu.br/eventos/inscricao/1/222/"
+
+    def abrir_a_area(self):
+        self.ads.inscricoes_abertas = True
+        self.ads.link_inscricao = self.LINK_DA_AREA
+        self.ads.save()
+
+    def test_sem_link_nenhum_nao_ha_botao(self):
+        r = self.client.get(self.url)
+        self.assertNotContains(r, "Inscreva-se")
+        self.assertNotContains(r, 'href=""')
+
+    def test_sem_link_proprio_usa_o_do_curso(self):
+        self.abrir_a_area()
+        r = self.client.get(self.url)
+        self.assertContains(r, self.LINK_DA_AREA)
+        self.assertContains(r, "Inscreva-se")
+        self.assertNotContains(r, "inscrição só desta atividade")
+
+    def test_link_proprio_tem_precedencia(self):
+        self.abrir_a_area()
+        self.ev_ads.link_inscricao = self.LINK_DO_EVENTO
+        self.ev_ads.save()
+
+        r = self.client.get(self.url)
+        self.assertContains(r, self.LINK_DO_EVENTO)
+        self.assertContains(r, "inscrição só desta atividade")
+        self.assertEqual(self.ev_ads.url_inscricao, self.LINK_DO_EVENTO)
+
+    def test_o_link_proprio_e_so_daquele_evento(self):
+        self.abrir_a_area()
+        self.ev_ads.link_inscricao = self.LINK_DO_EVENTO
+        self.ev_ads.save()
+
+        # o outro evento da mesma área continua no link do curso
+        self.assertEqual(self.ev_ads.url_inscricao, self.LINK_DO_EVENTO)
+        self.assertEqual(
+            Evento.objects.get(pk=self.ev_ads.pk).area.link_inscricao, self.LINK_DA_AREA
+        )
+        outro = Evento.objects.create(
+            titulo="Mesa-redonda",
+            data=date(2026, 10, 30),
+            hora_inicio=time(8, 0),
+            area=self.ads,
+        )
+        self.assertEqual(outro.url_inscricao, self.LINK_DA_AREA)
+
+    def test_link_proprio_aparece_mesmo_com_o_curso_fechado(self):
+        # o interruptor da área governa o link da área; um link colado na
+        # atividade é decisão de quem cadastrou a atividade
+        self.ev_ads.link_inscricao = self.LINK_DO_EVENTO
+        self.ev_ads.save()
+
+        r = self.client.get(self.url)
+        self.assertContains(r, self.LINK_DO_EVENTO)
+        self.assertTrue(self.ev_ads.mostra_botao_inscricao)
+
+    def test_link_do_curso_fechado_nao_vaza(self):
+        self.ads.link_inscricao = self.LINK_DA_AREA
+        self.ads.save()  # sem inscricoes_abertas
+
+        r = self.client.get(self.url)
+        self.assertNotContains(r, self.LINK_DA_AREA)
+        self.assertNotContains(r, "Inscreva-se")
+
+    def test_a_coordenacao_cadastra_o_link_pelo_painel(self):
+        self.entrar("coord_ads")
+        r = self.client.post(
+            reverse("painel:editar", args=[self.ev_ads.pk]),
+            self.dados(
+                titulo=self.ev_ads.titulo,
+                area=self.ads.pk,
+                link_inscricao="suap.ifro.edu.br/eventos/inscricao/1/222/",
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        # sem esquema no que foi colado, vira https
+        self.assertEqual(
+            Evento.objects.get(pk=self.ev_ads.pk).link_inscricao, self.LINK_DO_EVENTO
+        )
+
+    def test_link_invalido_e_recusado(self):
+        self.entrar("coord_ads")
+        r = self.client.post(
+            reverse("painel:editar", args=[self.ev_ads.pk]),
+            self.dados(
+                titulo=self.ev_ads.titulo, area=self.ads.pk, link_inscricao="não é link"
+            ),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Evento.objects.get(pk=self.ev_ads.pk).link_inscricao, "")
+
+
+class DocumentoNoSite(Base):
+    """O regulamento não muda: além do arquivo, ele é lido no próprio site."""
+
+    def setUp(self):
+        Anexo.objects.all().delete()
+        self.anexo = Anexo.objects.create(
+            titulo="Regulamento",
+            texto="## Das regras\n\nO trabalho do Campus deve ser enviado\nem PDF.\n\n- até 10 páginas\n- em PDF",
+        )
+
+    def test_a_pagina_do_documento_abre(self):
+        r = self.client.get(reverse("documento", args=["regulamento"]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Das regras")
+
+    def test_a_marcacao_simples_vira_html(self):
+        html = self.client.get(self.anexo.url_pagina).content.decode()
+        self.assertIn("<h2>Das regras</h2>", html)
+        self.assertIn("<li>até 10 páginas</li>", html)
+        # linhas seguidas são um parágrafo só, e Campus sai em itálico
+        self.assertIn("<p>O trabalho do <i>Campus</i> deve ser enviado em PDF.</p>", html)
+
+    def test_html_digitado_no_painel_nao_vira_marcacao(self):
+        self.anexo.texto = "<script>alert(1)</script>"
+        self.anexo.save()
+
+        r = self.client.get(self.anexo.url_pagina)
+        self.assertNotContains(r, "<script>alert(1)</script>")
+        self.assertContains(r, "&lt;script&gt;")
+
+    def test_documento_sem_texto_nao_tem_pagina(self):
+        self.anexo.texto = ""
+        self.anexo.link = "https://exemplo.invalid/reg.pdf"
+        self.anexo.save()
+        self.assertEqual(self.client.get("/trabalhos/regulamento/").status_code, 404)
+
+    def test_documento_fora_do_ar_nao_tem_pagina(self):
+        self.anexo.publicado = False
+        self.anexo.save()
+        self.assertEqual(self.client.get(self.anexo.url_pagina).status_code, 404)
+
+    def test_a_lista_oferece_ler_no_site(self):
+        r = self.client.get(reverse("trabalhos"))
+        self.assertContains(r, "Ler no site")
+        self.assertContains(r, self.anexo.url_pagina)
+
+    def test_texto_sem_arquivo_ainda_conta_como_conteudo(self):
+        # o regulamento em texto já vale a visita, mesmo sem o PDF
+        self.assertContains(self.client.get(reverse("home")), "Ver o regulamento")
+
+
+class DocumentosSemeados(TestCase):
+    """Os três documentos que a migração 0009 anuncia."""
+
+    def test_os_tres_existem_na_ordem_certa(self):
+        titulos = list(Anexo.objects.values_list("titulo", flat=True))
+        self.assertEqual(
+            titulos,
+            ["Regulamento", "Template de Trabalho Completo", "Template de Resumo Simples"],
+        )
+
+    def test_entram_anunciados_e_sem_arquivo(self):
+        for anexo in Anexo.objects.all():
+            self.assertFalse(anexo.disponivel, anexo.titulo)
+            self.assertTrue(anexo.publicado, anexo.titulo)
+            self.assertEqual(anexo.formato, "em breve")
+
+    def test_a_pagina_de_submissao_ja_os_anuncia(self):
+        r = self.client.get(reverse("trabalhos"))
+        self.assertContains(r, "Template de Trabalho Completo")
+        self.assertContains(r, "Template de Resumo Simples")
+        self.assertNotContains(r, 'href=""')
+
+    def test_a_home_nao_promete_documento_que_ainda_nao_existe(self):
+        self.assertNotContains(self.client.get(reverse("home")), "Ver o regulamento")
 
 
 class Saude(Base):

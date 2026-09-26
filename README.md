@@ -14,7 +14,8 @@ Aplicação Django + PostgreSQL, em container, sob o domínio
            Público          Coordenação
               │                 │
               ▼                 ▼
-     /  e  /cronograma/      /painel/
+  /, /trabalhos/ e          /painel/
+     /cronograma/
               └────────┬────────┘
                        ▼
                      Django
@@ -27,9 +28,12 @@ Aplicação Django + PostgreSQL, em container, sob o domínio
 | Endereço | Quem entra | Para quê |
 |---|---|---|
 | `/` | qualquer um | página da semana (a mesma de sempre) |
+| `/trabalhos/` | qualquer um | submissão de trabalhos: regulamento, modelos e o botão de envio |
+| `/trabalhos/<documento>/` | qualquer um | um documento lido no próprio site — hoje, o regulamento |
 | `/cronograma/` | qualquer um | cronograma, dia por dia, vindo do banco |
 | `/painel/` | coordenações | cadastrar os eventos das próprias áreas e abrir/fechar a inscrição delas |
 | `/painel/submissao/` | só o administrador | link e prazo da submissão de trabalhos |
+| `/painel/anexos/` | só o administrador | os documentos da página de submissão |
 | `/painel/cartoes/` | só o administrador | os sete cartões da seção Eventos |
 | `/admin/` | só o administrador | contas, cursos/áreas e todos os eventos |
 
@@ -122,6 +126,14 @@ Sem link, a caixa marcada só mostra o selo "Inscrições abertas" e nenhum
 botão — de propósito, para não gerar link quebrado. O painel avisa isso com
 "Falta o link".
 
+**Uma atividade com inscrição separada** — uma oficina de vagas limitadas, por
+exemplo — tem o próprio campo: no formulário do evento, em *Link de inscrição
+desta atividade*. O cronograma então mostra o botão daquela atividade, com a
+observação "inscrição só desta atividade". Em branco, que é o normal, o botão
+do evento usa o link do curso/área e some junto com ele quando a coordenação
+fecha as inscrições. O link próprio, por ser uma decisão de quem cadastrou a
+atividade, aparece independentemente do interruptor da área.
+
 ### 5. Abrir a submissão de trabalhos
 
 A submissão é **uma só para a semana inteira** — não é por curso nem por
@@ -130,14 +142,69 @@ no bloco "Submissão de trabalhos", clique em *Alterar*, marque **submissão
 aberta** e cole o link do formulário. O prazo é opcional: preenchido, a página
 mostra "Envios até …"; em branco, não fala em prazo.
 
-É a primeira seção da página inicial. Enquanto estiver fechada, ela mostra
-"A submissão abre em breve" no lugar do botão — a seção não some, para quem
-chega saber que vai existir.
+É a primeira seção da página inicial, e o botão dela **não vai direto ao
+formulário**: leva a `/trabalhos/`, onde estão o regulamento e o modelo, e o
+envio fica no fim daquela página. Enquanto a submissão estiver fechada, as
+duas mostram "em breve" no lugar do botão — nada some, para quem chega saber
+que vai existir.
 
 Uma coordenação que digite `/painel/submissao/` na barra de endereços recebe
 404: a checagem é no servidor, não em esconder o bloco da tela.
 
-### 6. Editar os cartões da página inicial
+### 6. Publicar o regulamento e o modelo
+
+Os documentos que o estudante lê antes de enviar ficam em `/painel/anexos/`
+(atalho **Documentos da submissão**, só você o vê). O site já sobe anunciando
+os três que a organização combinou:
+
+| Documento | Estado |
+|---|---|
+| Regulamento | anunciado, sem arquivo ainda |
+| Template de Trabalho Completo | anunciado, sem arquivo ainda |
+| Template de Resumo Simples | anunciado, sem arquivo ainda |
+
+Cada documento é **um arquivo enviado ou um link**, nunca os dois: o arquivo
+vai para o servidor e o botão baixa; o link serve para o que já está
+publicado em outro lugar, e o botão abre em outra aba.
+
+- **Os dois em branco** deixam o documento como “em breve”: ele continua na
+  lista, cinza e sem botão. É assim que os três sobem — quem visita já sabe o
+  que vai precisar, e ninguém clica num botão que não abre nada.
+- O limite é de **30 MB por arquivo** — folgado para caber um PDF
+  digitalizado, cheio de logo e carimbo. Acima disso, comprima o PDF ou
+  publique em outro lugar e cole o link.
+- **Ordem**: menor primeiro, é por ela que a lista se organiza.
+- **Publicado**: desmarcado, sai da página sem ser apagado.
+- Excluir apaga o arquivo do servidor junto — para tirar do ar sem perder,
+  desmarque *publicado*.
+
+O **cronograma de avaliação não é um documento**: ele mora no próprio site, em
+`/cronograma/`, cadastrado pelas coordenações.
+
+#### O regulamento também fica no site
+
+O campo **texto no site** do documento, preenchido, dá a ele uma página
+própria em `/trabalhos/<endereço curto>/` — o regulamento não muda durante a
+semana, e conferir uma regra no celular sem baixar PDF é melhor. A lista
+passa a mostrar os dois botões: *Ler no site* e *Baixar*. Os dois são o mesmo
+documento; manter os dois em dia é com você.
+
+A escrita é texto puro, com três marcas só:
+
+```
+## Das disposições gerais      vira um título
+- item                         vira item de lista
+(linha em branco)              separa parágrafos
+```
+
+Linhas seguidas viram um parágrafo só. HTML digitado ali aparece como texto na
+tela, não como marcação.
+
+No servidor, os arquivos enviados ficam num volume do Docker
+(`/dados/midia`), e não dentro da imagem: é o que faz eles sobreviverem ao
+`docker compose up -d --build` da próxima atualização.
+
+### 7. Editar os cartões da página inicial
 
 Os sete cartões da seção **Eventos** também são dados: título, etiqueta,
 responsável, descrição e a programação resumida. Em `/painel/` há o atalho
@@ -163,12 +230,12 @@ Algumas coisas que vale saber:
   vez de virar negrito. A única exceção é a palavra *Campus*, que o site põe em
   itálico sozinho.
 
-### 7. Desativar uma conta
+### 8. Desativar uma conta
 
 **Usuários** → abra a conta → desmarque **Ativo**. Ela deixa de conseguir
 entrar, e os eventos que cadastrou continuam no lugar.
 
-### 8. Trocar uma senha
+### 9. Trocar uma senha
 
 **Usuários** → abra a conta → no campo de senha, clique no link para definir
 uma nova.
@@ -213,13 +280,13 @@ config/
   urls.py
 
 eventos/
-  models.py              Area, Evento, Submissao, Cartao e areas_do_usuario()
+  models.py              Area, Evento, Submissao, Cartao, Anexo e areas_do_usuario()
   views.py               site público e painel (@so_administrador fecha o que é só seu)
   forms.py               formulários do painel
   admin.py               Django Admin, incluindo o campo de áreas no usuário
-  templatetags/snct.py   |campus, que põe a palavra Campus em itálico
+  templatetags/snct.py   |campus e |texto_rico, os dois únicos que geram HTML
   management/commands/   criar_admin: a conta inicial, a partir do .env
-  tests.py               91 testes, sobretudo de permissão
+  tests.py               134 testes, sobretudo de permissão
   migrations/
     0001_initial.py
     0002_areas_iniciais.py         cria os cursos/áreas da semana
@@ -227,10 +294,15 @@ eventos/
     0004_submissao_de_trabalhos.py a submissão, uma linha só
     0005_cartoes_da_home.py        os sete cartões, com o texto que já estava no ar
     0006_link_de_horarios_proprio.py  horários fora do site, por cartão
+    0007_documentos_da_submissao.py   regulamento, modelos e afins
+    0008_inscricao_por_evento.py      link de inscrição de uma atividade só
+    0009_documentos_previstos.py      anuncia os três documentos, sem arquivo
 
 templates/
   base.html              cabeçalho, rodapé e meta tags do site público
   index.html             a página da semana
+  trabalhos.html         a página da submissão de trabalhos
+  documento.html         um documento lido no site (o regulamento)
   cronograma.html        o cronograma público
   painel/                as telas da coordenação e do administrador
 
@@ -254,9 +326,9 @@ formulário chamam essa função, então mudar a regra é mudar uma função.
   mesma queryset que valida o POST
 - **Editar/excluir** — `get_object_or_404(..., area__in=areas_do_usuario(user))`
 - **Inscrição** — `get_object_or_404(areas_do_usuario(user), slug=slug)`
-- **Submissão de trabalhos e cartões da home** — valem para o evento inteiro,
-  então a porta é o decorador `@so_administrador`: quem não é superusuário
-  recebe 404, no GET e no POST
+- **Submissão, documentos dela e cartões da home** — valem para o evento
+  inteiro, então a porta é o decorador `@so_administrador`: quem não é
+  superusuário recebe 404, no GET e no POST
 - **Administrador** — `is_superuser` recebe todas as áreas ativas
 
 ---
@@ -272,7 +344,8 @@ A ordem das seções é:
 2. **Submissão de trabalhos** (`#trabalhos`) — a primeira seção: faixa escura
    inteira, separada do herói por um fio vermelho, com um cartão claro à
    direita. O cartão mostra o prazo em corpo grande quando há data, e o
-   estado (“Em breve”/“Aberta”) quando não há. Link e prazo vêm do banco;
+   estado (“Em breve”/“Aberta”) quando não há. Link e prazo vêm do banco, e o
+   botão leva a `/trabalhos/`;
 3. **Programação geral** (`#programacao`) — os quatro dias, em três cartões;
 4. **Eventos** (`#eventos`) — abre com o bloco **Como se inscrever**
    (`#inscrever`, três passos, sempre visível) e depois os cartões, que vêm
@@ -291,7 +364,23 @@ Ainda falta preencher:
   `templates/index.html` (`grep -n "a confirmar" templates/index.html`).
 
 Os links de inscrição **não** ficam mais no HTML: são cadastrados em
-/admin/ → Cursos/áreas, um por curso/área.
+/admin/ → Cursos/áreas, um por curso/área — e uma atividade que tenha
+inscrição separada leva o próprio link no cadastro do evento.
+
+### A página de submissão
+
+`/trabalhos/` (`templates/trabalhos.html`) tem três tempos, nesta ordem: o
+**estado** no cabeçalho (o prazo, quando há), os **documentos** para ler antes
+e o **envio** no fim, em faixa escura. Tudo vem do banco: os documentos de
+`/painel/anexos/`, o link e o prazo de `/painel/submissao/`.
+
+O **envio fica num cartão claro**, e não numa faixa escura: em faixa ele
+encostava no rodapé — também escuro — e os dois viravam a mesma mancha,
+justamente onde a pessoa precisa ver o botão.
+
+Os arquivos enviados são servidos pelo próprio Django em `/midia/…`, e não
+pelo whitenoise: eles chegam depois do deploy e nunca passam pelo
+`collectstatic`. São poucos PDFs, e o proxy da frente já os comprime.
 
 ### A marca do IFRO
 

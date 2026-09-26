@@ -1,6 +1,7 @@
 from django import forms
+from django.conf import settings
 
-from .models import Area, Cartao, Evento, Submissao, areas_do_usuario
+from .models import Anexo, Area, Cartao, Evento, Submissao, areas_do_usuario
 
 
 class EventoForm(forms.ModelForm):
@@ -11,9 +12,28 @@ class EventoForm(forms.ModelForm):
     então um envio manual com o id de outra área é recusado.
     """
 
+    link_inscricao = forms.URLField(
+        label="Link de inscrição desta atividade",
+        required=False,
+        # Sem isso, colar o endereço sem o "https://" viraria http.
+        assume_scheme="https",
+        widget=forms.URLInput(attrs={"placeholder": "https://suap.ifro.edu.br/..."}),
+        help_text="Só quando esta atividade tem inscrição separada. Em branco, "
+        "o cronograma usa o link do curso/área.",
+    )
+
     class Meta:
         model = Evento
-        fields = ["titulo", "area", "data", "hora_inicio", "hora_fim", "local", "descricao"]
+        fields = [
+            "titulo",
+            "area",
+            "data",
+            "hora_inicio",
+            "hora_fim",
+            "local",
+            "descricao",
+            "link_inscricao",
+        ]
         # Curtos porque os três ficam lado a lado numa linha só: os rótulos
         # longos quebravam em duas linhas e desalinhavam os campos.
         labels = {"hora_inicio": "Início", "hora_fim": "Término"}
@@ -147,3 +167,48 @@ class CartaoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["area"].queryset = Area.objects.filter(ativo=True)
         self.fields["area"].empty_label = "Escolha o curso/área"
+
+
+class AnexoForm(forms.ModelForm):
+    """Um documento da página de submissão. Só o administrador chega aqui."""
+
+    link = forms.URLField(
+        label="Link",
+        required=False,
+        # Sem isso, colar o endereço sem o "https://" viraria http.
+        assume_scheme="https",
+        widget=forms.URLInput(attrs={"placeholder": "https://drive.google.com/..."}),
+        help_text="Para um documento que já está publicado em outro lugar. "
+        "Deixe em branco se enviou um arquivo.",
+    )
+
+    class Meta:
+        model = Anexo
+        fields = ["titulo", "descricao", "arquivo", "link", "texto", "ordem", "publicado"]
+        widgets = {
+            "titulo": forms.TextInput(attrs={"placeholder": "Ex.: Regulamento"}),
+            "descricao": forms.TextInput(
+                attrs={"placeholder": "Ex.: Regras de formatação e critérios de avaliação"}
+            ),
+            "texto": forms.Textarea(
+                attrs={
+                    "rows": 16,
+                    "placeholder": "## Das disposições gerais\n\n"
+                    "Escreva aqui o texto do documento.\n\n"
+                    "- um item de lista\n- outro item",
+                }
+            ),
+        }
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data.get("arquivo")
+        # `size` só existe no arquivo recém-enviado; no que já está gravado o
+        # campo volta como FieldFile e não há nada para conferir.
+        tamanho = getattr(arquivo, "size", None)
+        if tamanho and tamanho > settings.TAMANHO_MAXIMO_ANEXO:
+            limite = settings.TAMANHO_MAXIMO_ANEXO // (1024 * 1024)
+            raise forms.ValidationError(
+                f"O arquivo tem {tamanho / (1024 * 1024):.1f} MB e o limite é "
+                f"{limite} MB. Comprima o PDF ou publique em outro lugar e use o link."
+            )
+        return arquivo

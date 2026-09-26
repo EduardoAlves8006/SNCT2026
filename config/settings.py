@@ -168,6 +168,21 @@ STORAGES = {
     },
 }
 
+# ------------------------------------------------- anexos enviados pelo painel
+
+# Os documentos da submissão (regulamento, modelo de resumo) são enviados
+# depois de o site já estar no ar, então não podem morar na imagem do
+# container: o próximo `docker compose up --build` refaz a imagem e levaria
+# tudo junto. MEDIA_ROOT aponta para um volume — veja o docker-compose.yml.
+MEDIA_URL = "/midia/"
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT") or BASE_DIR / "midia")
+
+# Folgado de propósito: um regulamento digitalizado, cheio de logo e carimbo,
+# passa fácil dos 10 MB, e quem envia não tem como comprimir o PDF na hora. O
+# limite existe só para barrar o envio claramente errado — um vídeo, por
+# exemplo — e não para policiar o tamanho do documento.
+TAMANHO_MAXIMO_ANEXO = 30 * 1024 * 1024
+
 # ------------------------------------------------------------------- segurança
 
 if not DEBUG:

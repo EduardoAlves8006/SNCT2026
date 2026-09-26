@@ -14,6 +14,11 @@
 		# O Django precisa saber que a requisição original chegou em https,
 		# senão redireciona para https em laço infinito.
 		header_up X-Forwarded-Proto {scheme}
+
+		# Segura o envio inteiro antes de repassar. Sem isso, o upload de um
+		# documento grande chega gota a gota no gunicorn e estoura o timeout
+		# de 60s dele — o arquivo se perderia depois de minutos subindo.
+		request_buffers 32MB
 	}
 
 	log {

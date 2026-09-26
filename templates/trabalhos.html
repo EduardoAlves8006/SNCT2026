@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load snct %}
+
+{% block titulo %}Submissão de trabalhos — 23ª SNCT · IFRO Campus Ariquemes{% endblock %}
+{% block descricao %}Como enviar um trabalho para a 23ª Semana Nacional de Ciência e Tecnologia do IFRO Campus Ariquemes: regulamento, modelos de trabalho e o formulário de envio.{% endblock %}
+{% block og_titulo %}Submissão de trabalhos — 23ª SNCT{% endblock %}
+{% block og_descricao %}Regulamento, modelos e o formulário de envio dos trabalhos da 23ª SNCT do IFRO Campus Ariquemes.{% endblock %}
+
+{% block conteudo %}
+
+  <section class="heroi heroi--curto">
+    <div class="shell heroi__grade">
+      <p class="rotulo rotulo--claro" style="--i:0">23ª SNCT · Campus Ariquemes</p>
+      <h1 style="--i:1">Submissão de trabalhos</h1>
+      <p class="lead" style="--i:2">
+        Estudantes de qualquer curso podem inscrever trabalhos na semana. É um
+        envio só, para o evento inteiro: não é por curso nem por área. Leia os
+        documentos abaixo antes de enviar.
+      </p>
+
+      <p class="estado" style="--i:3">
+        {% if submissao.prazo %}
+          <span class="estado__rotulo">Prazo de envio</span>
+          <b>{{ submissao.prazo|date:"j" }} de {{ submissao.prazo|date:"F"|lower }}</b>
+        {% else %}
+          <span class="estado__rotulo">Envio dos trabalhos</span>
+          <b>{% if submissao.mostra_botao %}Aberto{% else %}Em breve{% endif %}</b>
+        {% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="shell">
+
+      <div class="cabeca-secao">
+        <p class="rotulo">Antes de enviar</p>
+        <h2>Documentos</h2>
+      </div>
+
+      {% comment %}
+        Os documentos vêm do banco (/painel/anexos/). Um documento ainda sem
+        arquivo continua na lista, como "em breve": a pessoa precisa saber que
+        ele vai existir, e um botão que não abre nada seria pior que nenhum.
+      {% endcomment %}
+      {% if anexos %}
+        <ul class="docs">
+          {% for anexo in anexos %}
+            <li class="doc revela{% if not anexo.disponivel and not anexo.tem_pagina %} doc--breve{% endif %}"
+                style="--i:{{ forloop.counter0 }}">
+              <p class="doc__formato" aria-hidden="true">{{ anexo.formato }}</p>
+
+              <div class="doc__corpo">
+                <h3>{{ anexo.titulo }}</h3>
+                {% if anexo.descricao %}
+                  <p class="doc__desc">{{ anexo.descricao|campus }}</p>
+                {% endif %}
+                <p class="doc__meta">
+                  {% if not anexo.disponivel %}
+                    {% if anexo.tem_pagina %}
+                      Leitura no site · arquivo em breve
+                    {% else %}
+                      Ainda não publicado
+                    {% endif %}
+                  {% elif anexo.externo %}
+                    Documento publicado fora deste site
+                  {% else %}
+                    {{ anexo.formato }}{% if anexo.tamanho %} · {{ anexo.tamanho }}{% endif %}
+                  {% endif %}
+                </p>
+              </div>
+
+              <p class="doc__acao">
+                {% if anexo.tem_pagina %}
+                  <a class="botao botao--linha" href="{{ anexo.url_pagina }}">
+                    Ler no site <span class="seta" aria-hidden="true">→</span>
+                  </a>
+                {% endif %}
+                {% if anexo.disponivel %}
+                  <a class="botao botao--linha" href="{{ anexo.url }}"
+                     {% if anexo.externo %}target="_blank" rel="noopener"{% else %}download{% endif %}>
+                    {% if anexo.externo %}Abrir{% else %}Baixar{% endif %}
+                    <span class="seta" aria-hidden="true">→</span>
+                  </a>
+                {% elif not anexo.tem_pagina %}
+                  <span class="em-breve">Em breve</span>
+                {% endif %}
+              </p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="vazio">
+          <p class="vazio__titulo">Os documentos ainda não foram publicados</p>
+          <p>O regulamento e os modelos de trabalho ficam nesta página assim que
+            a comissão organizadora divulgar. Vale conferir de novo mais perto
+            de outubro.</p>
+        </div>
+      {% endif %}
+
+    </div>
+  </section>
+
+  {% comment %}
+    O envio é um cartão, e não uma faixa escura: em faixa ele encostava no
+    rodapé — também escuro — e os dois viravam a mesma mancha, justamente no
+    ponto em que a pessoa precisa ver um botão.
+  {% endcomment %}
+  <section class="secao secao--fecho" id="enviar">
+    <div class="shell">
+      <div class="envio-final{% if submissao.mostra_botao %} envio-final--aberto{% endif %}">
+        <p class="rotulo">Envio</p>
+
+        <h2>
+          {% if submissao.mostra_botao %}
+            Leu tudo? Então é só enviar.
+          {% else %}
+            O formulário de envio abre em breve
+          {% endif %}
+        </h2>
+
+        <p class="envio-final__nota">
+          {% if submissao.mostra_botao %}
+            O envio é feito num formulário fora deste site.
+            {% if submissao.prazo %}
+              Ele fecha em {{ submissao.prazo|date:"j" }} de {{ submissao.prazo|date:"F"|lower }}.
+            {% endif %}
+          {% else %}
+            O endereço do formulário é divulgado aqui mesmo, nesta página,
+            assim que a comissão organizadora abrir a submissão.
+          {% endif %}
+        </p>
+
+        {% if submissao.mostra_botao %}
+          <a class="botao botao--acao botao--grande" href="{{ submissao.link }}"
+             target="_blank" rel="noopener">
+            Enviar meu trabalho <span class="seta" aria-hidden="true">→</span>
+          </a>
+        {% else %}
+          <span class="em-breve">Envio em breve</span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+{% endblock %}

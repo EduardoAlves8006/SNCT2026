@@ -1,0 +1,67 @@
+{% extends "painel/base.html" %}
+
+{% block titulo %}Documentos da submissão{% endblock %}
+
+{% block conteudo %}
+
+  <p class="voltar"><a href="{% url 'painel:lista' %}">← Voltar para o cronograma</a></p>
+
+  <div class="painel__cabeca">
+    <div>
+      <h1>Documentos da submissão</h1>
+      <p class="painel__quem">
+        O regulamento, o modelo de resumo e o que mais o estudante precisar ler
+        antes de enviar. Aparecem na
+        <a href="{% url 'trabalhos' %}" target="_blank" rel="noopener">página de
+        submissão</a>, acima do botão de envio. Só o administrador edita.
+      </p>
+    </div>
+
+    <a class="botao botao--acao" href="{% url 'painel:anexo_novo' %}">+ Adicionar documento</a>
+  </div>
+
+  {% if anexos %}
+    <ul class="cartoes">
+      {% for a in anexos %}
+        <li class="cartao{% if not a.publicado %} cartao--fora{% endif %}">
+          <p class="cartao__hora">{{ a.ordem }}<small>ordem</small></p>
+
+          <div class="cartao__corpo">
+            <h2 class="cartao__titulo">{{ a.titulo }}</h2>
+
+            <p class="cartao__meta">
+              <span class="trilha">{{ a.formato }}</span>
+              {% if a.tamanho %}<span>{{ a.tamanho }}</span>{% endif %}
+              {% if a.externo %}<span>fora do site</span>{% endif %}
+              {% if a.tem_pagina %}<span>também no site</span>{% endif %}
+              {% if not a.disponivel %}
+                <span class="estado estado--falta">Falta o arquivo</span>
+              {% endif %}
+              {% if not a.publicado %}<span class="estado estado--breve">Fora do ar</span>{% endif %}
+            </p>
+
+            {% if a.descricao %}<p class="cartao__desc">{{ a.descricao }}</p>{% endif %}
+          </div>
+
+          <p class="cartao__acoes">
+            {% if a.disponivel %}
+              <a class="botao botao--linha" href="{{ a.url }}" target="_blank" rel="noopener">Ver</a>
+            {% elif a.tem_pagina %}
+              <a class="botao botao--linha" href="{{ a.url_pagina }}" target="_blank" rel="noopener">Ver</a>
+            {% endif %}
+            <a class="botao botao--linha" href="{% url 'painel:anexo_editar' a.pk %}">Editar</a>
+            <a class="botao botao--apagar" href="{% url 'painel:anexo_excluir' a.pk %}">Excluir</a>
+          </p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="vazio">
+      <p class="vazio__titulo">Nenhum documento publicado</p>
+      <p>Enquanto não houver nenhum, a página de submissão avisa que os
+        documentos ainda serão divulgados.</p>
+      <p><a class="botao botao--acao" href="{% url 'painel:anexo_novo' %}">+ Adicionar documento</a></p>
+    </div>
+  {% endif %}
+
+{% endblock %}

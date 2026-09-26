@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -97,6 +99,14 @@ class Evento(models.Model):
     hora_inicio = models.TimeField("horário de início")
     hora_fim = models.TimeField("horário de término", null=True, blank=True)
     local = models.CharField("local", max_length=120, blank=True)
+    link_inscricao = models.URLField(
+        "link de inscrição",
+        max_length=300,
+        blank=True,
+        help_text="Só quando esta atividade tem inscrição separada. Em branco, "
+        "o cronograma usa o link do curso/área — o mesmo do cartão da página "
+        "inicial.",
+    )
     area = models.ForeignKey(
         Area,
         verbose_name="curso/área",
@@ -131,6 +141,30 @@ class Evento(models.Model):
             raise ValidationError(
                 {"hora_fim": "O horário de término tem que ser depois do de início."}
             )
+
+    # Inscrição: o link próprio manda, e o da área é o padrão. Uma oficina
+    # com vagas limitadas costuma ter formulário só dela; o resto da semana
+    # usa a inscrição única do curso, que a coordenação já mantém na área.
+    @property
+    def url_inscricao(self):
+        return self.link_inscricao or self.area.link_inscricao
+
+    @property
+    def mostra_botao_inscricao(self):
+        """Quando o cronograma mostra o botão de inscrição deste evento.
+
+        Link próprio aparece sempre: quem o colou aqui quis inscrição nesta
+        atividade, e não faria sentido depender do interruptor da área. Sem
+        link próprio, o botão é o da área e obedece ao interruptor dela.
+        """
+        if self.link_inscricao:
+            return True
+        return self.area.mostra_botao_inscricao
+
+    @property
+    def inscricao_propria(self):
+        """O botão leva a um formulário só desta atividade?"""
+        return bool(self.link_inscricao)
 
     @property
     def horario(self):
@@ -312,6 +346,161 @@ class Cartao(models.Model):
     def itens_programacao(self):
         """A programação como lista, uma linha por item."""
         return [linha.strip() for linha in self.programacao.splitlines() if linha.strip()]
+
+
+class AnexoQuerySet(models.QuerySet):
+    def publicados(self):
+        return self.filter(publicado=True)
+
+    def com_conteudo(self):
+        """Só o que já dá para baixar ou ler — sem os “em breve”.
+
+        Serve para a página inicial decidir se vale mandar alguém para a
+        página de submissão: uma lista inteira de "em breve" não vale.
+        """
+        return self.publicados().exclude(arquivo="", link="", texto="")
+
+
+class Anexo(models.Model):
+    """Um documento da página de submissão: regulamento, modelo, edital.
+
+    Pode ser um arquivo enviado pelo painel ou um endereço de fora — alguns
+    documentos já vivem no Drive da coordenação e não vale a pena duplicar.
+    É um ou outro, nunca os dois, para não haver dúvida sobre qual dos dois
+    o botão baixa.
+
+    Os arquivos enviados vão para MEDIA_ROOT, que no servidor é um volume: o
+    próximo `docker compose up --build` refaz a imagem, e o que estivesse
+    dentro dela sumiria.
+    """
+
+    titulo = models.CharField("título", max_length=120)
+    slug = models.SlugField(
+        "endereço curto",
+        max_length=120,
+        unique=True,
+        blank=True,
+        help_text="Preenchido automaticamente a partir do título. É o "
+        "endereço da versão do documento que fica no site.",
+    )
+    descricao = models.CharField(
+        "descrição",
+        max_length=200,
+        blank=True,
+        help_text="Uma linha explicando o que é. Opcional.",
+    )
+    arquivo = models.FileField(
+        "arquivo",
+        upload_to="submissao/",
+        blank=True,
+        help_text="PDF, DOCX, ODT… Deixe em branco se for usar um link, ou se "
+        "o documento ainda não ficou pronto.",
+    )
+    link = models.URLField(
+        "link",
+        max_length=300,
+        blank=True,
+        help_text="Para um documento que já está publicado em outro lugar. "
+        "Deixe em branco se enviou um arquivo.",
+    )
+    texto = models.TextField(
+        "texto no site",
+        blank=True,
+        help_text="Opcional. Preenchido, o documento também ganha uma página "
+        "no próprio site, para ler sem baixar nada — é o caso do regulamento. "
+        "Uma linha começando com ## vira título; com - vira item de lista; "
+        "linha em branco separa parágrafos.",
+    )
+    ordem = models.PositiveSmallIntegerField(
+        "ordem",
+        default=0,
+        help_text="Menor primeiro. Empate, ordena pelo título.",
+    )
+    publicado = models.BooleanField(
+        "publicado",
+        default=True,
+        help_text="Desmarque para tirar da página sem apagar o documento.",
+    )
+
+    objects = AnexoQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "documento da submissão"
+        verbose_name_plural = "documentos da submissão"
+        ordering = ["ordem", "titulo"]
+
+    def __str__(self):
+        return self.titulo
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.titulo)[:120]
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        # Um ou outro, nunca os dois: os dois preenchidos deixariam o botão
+        # ambíguo. Nenhum dos dois é permitido de propósito — é o documento
+        # que a organização já anunciou e ainda não ficou pronto; a página o
+        # mostra como "em breve", e não como um botão que não abre nada.
+        if self.arquivo and self.link:
+            raise ValidationError(
+                "Escolha um dos dois: ou envia o arquivo, ou põe o link. "
+                "Não dá para ter os dois no mesmo documento."
+            )
+
+    @property
+    def disponivel(self):
+        """Há o que baixar hoje? Sem arquivo e sem link, é um "em breve"."""
+        return bool(self.arquivo or self.link)
+
+    @property
+    def tem_pagina(self):
+        """O documento também pode ser lido no próprio site."""
+        return bool(self.texto.strip())
+
+    @property
+    def url_pagina(self):
+        return reverse("documento", args=[self.slug])
+
+    @property
+    def externo(self):
+        """Mora fora do site? Então o botão abre em outra aba."""
+        return bool(self.link) and not self.arquivo
+
+    @property
+    def url(self):
+        """Para onde o botão de baixar vai. Vazio quando não há o que baixar."""
+        if not self.disponivel:
+            return ""
+        return self.link if self.externo else self.arquivo.url
+
+    @property
+    def formato(self):
+        """A etiqueta do cartão: PDF, DOCX, “link”, “site” ou “em breve”."""
+        if not self.disponivel:
+            # Sem arquivo, mas com texto, ainda há o que ler: a página.
+            return "site" if self.tem_pagina else "em breve"
+        if self.externo:
+            return "link"
+        sufixo = Path(self.arquivo.name).suffix.lstrip(".")
+        return sufixo.upper() or "arquivo"
+
+    @property
+    def tamanho(self):
+        """Tamanho legível, ou vazio quando o arquivo não está mais no disco.
+
+        Não está mais no disco acontece: alguém restaura um banco sem restaurar
+        o volume. Melhor a página não mostrar tamanho do que estourar erro 500.
+        """
+        if self.externo or not self.arquivo:
+            return ""
+        try:
+            bytes_ = self.arquivo.size
+        except (OSError, ValueError):
+            return ""
+        if bytes_ < 1024 * 1024:
+            return f"{max(bytes_ // 1024, 1)} KB"
+        return f"{bytes_ / (1024 * 1024):.1f} MB".replace(".", ",")
 
 
 def areas_do_usuario(user):

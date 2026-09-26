@@ -16,3 +16,6 @@ staticfiles/
 *.swp
 .idea/
 .vscode/
+
+# anexos enviados pelo painel (no servidor ficam num volume)
+midia/

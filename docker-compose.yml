@@ -25,8 +25,13 @@ services:
       # recusar a subir do que subir um site em que ninguém entra.
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env}
       ADMIN_SENHA: ${ADMIN_SENHA:?defina ADMIN_SENHA no .env}
+      # Os documentos da submissão (regulamento, modelo) são enviados pelo
+      # painel depois do deploy. Vão para o volume, e não para dentro da
+      # imagem: o próximo `up -d --build` refaz a imagem e levaria tudo junto.
+      MEDIA_ROOT: /dados/midia
     volumes:
-      # Só é usado se a instalação optar por SQLite em vez de PostgreSQL.
+      # Guarda os anexos enviados pelo painel — e o banco, se a instalação
+      # optar por SQLite em vez de PostgreSQL.
       - dados:/dados
     depends_on:
       db:

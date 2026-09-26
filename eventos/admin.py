@@ -5,7 +5,7 @@ from django.contrib.auth.forms import UserChangeForm as UserChangeFormPadrao
 from django.contrib.auth.forms import UserCreationForm as UserCreationFormPadrao
 from django.contrib.auth.models import Group, User
 
-from .models import Area, Cartao, Evento, Submissao
+from .models import Anexo, Area, Cartao, Evento, Submissao
 
 
 @admin.register(Area)
@@ -113,12 +113,16 @@ class CartaoAdmin(admin.ModelAdmin):
 
 @admin.register(Evento)
 class EventoAdmin(admin.ModelAdmin):
-    list_display = ["titulo", "area", "data", "hora_inicio", "local"]
+    list_display = ["titulo", "area", "data", "hora_inicio", "local", "tem_inscricao_propria"]
     list_filter = ["area", "data"]
     search_fields = ["titulo", "descricao", "local"]
     date_hierarchy = "data"
     autocomplete_fields = ["area"]
     readonly_fields = ["criado_por", "criado_em", "atualizado_em"]
+
+    @admin.display(description="inscrição própria", boolean=True)
+    def tem_inscricao_propria(self, obj):
+        return obj.inscricao_propria
 
     def save_model(self, request, obj, form, change):
         if not change and not obj.criado_por:
@@ -217,3 +221,44 @@ admin.site.register(User, UserAdmin)
 
 # Grupos não são usados: a permissão do painel vem das áreas.
 admin.site.unregister(Group)
+
+
+@admin.register(Anexo)
+class AnexoAdmin(admin.ModelAdmin):
+    """Os documentos da página de submissão.
+
+    O caminho normal é o painel (/painel/anexos/); isto aqui é a rede de
+    segurança de quem já está no /admin/.
+    """
+
+    list_display = ["titulo", "formato", "ordem", "publicado"]
+    prepopulated_fields = {"slug": ["titulo"]}
+    list_editable = ["ordem", "publicado"]
+    list_filter = ["publicado"]
+    search_fields = ["titulo", "descricao"]
+
+    fieldsets = (
+        (None, {"fields": ("titulo", "descricao")}),
+        (
+            "O documento",
+            {
+                "fields": ("arquivo", "link"),
+                "description": "Um ou outro: ou o arquivo enviado, ou o "
+                "endereço de um documento que já está publicado fora daqui. "
+                "Os dois em branco deixam o documento como “em breve”.",
+            },
+        ),
+        (
+            "No site",
+            {
+                "fields": ("texto", "slug"),
+                "description": "Preenchido, o documento também ganha página "
+                "no site, em /trabalhos/&lt;endereço curto&gt;/.",
+            },
+        ),
+        ("Na página", {"fields": ("ordem", "publicado")}),
+    )
+
+    @admin.display(description="formato")
+    def formato(self, obj):
+        return obj.formato

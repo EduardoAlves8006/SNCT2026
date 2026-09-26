@@ -51,6 +51,6 @@ ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 CMD ["gunicorn", "config.wsgi", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \
-     "--timeout", "60", \
+     "--timeout", "180", \
      "--access-logfile", "-", \
      "--error-logfile", "-"]

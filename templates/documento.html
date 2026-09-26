@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load snct %}
+
+{% block titulo %}{{ anexo.titulo }} — 23ª SNCT · IFRO Campus Ariquemes{% endblock %}
+{% block descricao %}{% if anexo.descricao %}{{ anexo.descricao }}{% else %}{{ anexo.titulo }} da submissão de trabalhos da 23ª SNCT do IFRO Campus Ariquemes.{% endif %}{% endblock %}
+{% block og_titulo %}{{ anexo.titulo }} — 23ª SNCT{% endblock %}
+{% block og_descricao %}{% if anexo.descricao %}{{ anexo.descricao }}{% else %}Submissão de trabalhos da 23ª SNCT do IFRO Campus Ariquemes.{% endif %}{% endblock %}
+
+{% block conteudo %}
+
+  <section class="heroi heroi--curto">
+    <div class="shell heroi__grade">
+      <p class="rotulo rotulo--claro" style="--i:0">Submissão de trabalhos</p>
+      <h1 style="--i:1">{{ anexo.titulo }}</h1>
+      {% if anexo.descricao %}
+        <p class="lead" style="--i:2">{{ anexo.descricao|campus }}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="shell">
+      <p class="voltar-publico">
+        <a href="{% url 'trabalhos' %}">← Voltar para a submissão de trabalhos</a>
+      </p>
+
+      {# O mesmo documento, em arquivo, para quem preferir levar impresso. #}
+      {% if anexo.disponivel %}
+        <p class="documento__baixar">
+          <a class="botao botao--linha" href="{{ anexo.url }}"
+             {% if anexo.externo %}target="_blank" rel="noopener"{% else %}download{% endif %}>
+            Baixar {{ anexo.formato }} <span class="seta" aria-hidden="true">→</span>
+          </a>
+        </p>
+      {% endif %}
+
+      <article class="documento">{{ anexo.texto|texto_rico }}</article>
+
+      <p class="documento__fim">
+        <a class="botao botao--linha" href="{% url 'trabalhos' %}#enviar">
+          Ir para o envio <span class="seta" aria-hidden="true">→</span>
+        </a>
+      </p>
+    </div>
+  </section>
+
+{% endblock %}

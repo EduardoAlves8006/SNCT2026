@@ -26,6 +26,7 @@
   {% if user.is_superuser %}
     <p class="atalhos">
       <a href="{% url 'painel:cartoes' %}">Cartões da página inicial <span class="seta" aria-hidden="true">→</span></a>
+      <a href="{% url 'painel:anexos' %}">Documentos da submissão <span class="seta" aria-hidden="true">→</span></a>
     </p>
   {% endif %}
 
@@ -53,7 +54,10 @@
             {% endif %}
           </div>
 
-          <a class="botao botao--linha" href="{% url 'painel:submissao' %}">Alterar</a>
+          <p class="inscricao__acoes">
+            <a class="botao botao--linha" href="{% url 'painel:anexos' %}">Documentos</a>
+            <a class="botao botao--linha" href="{% url 'painel:submissao' %}">Alterar</a>
+          </p>
         </li>
       </ul>
     </section>
